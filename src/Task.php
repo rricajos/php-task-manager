@@ -104,6 +104,7 @@ class Task
      * @param Status $estado Estado actual de la tarea
      * @param string $fechaCreacion Fecha y hora de creacion
      * @param string|null $fechaCompletada Fecha y hora de completado (null si pendiente)
+     * @param string|null $fechaVencimiento Fecha limite de la tarea (null si no tiene)
      */
     public function __construct(
         public readonly ?int $id,
@@ -113,6 +114,7 @@ class Task
         public readonly Status $estado = Status::Pendiente,
         public readonly string $fechaCreacion = '',
         public readonly ?string $fechaCompletada = null,
+        public readonly ?string $fechaVencimiento = null,
     ) {}
 
     /**
@@ -134,6 +136,7 @@ class Task
             estado: Status::from($row['estado']),
             fechaCreacion: $row['fecha_creacion'] ?? '',
             fechaCompletada: $row['fecha_completada'],
+            fechaVencimiento: $row['fecha_vencimiento'] ?? null,
         );
     }
 
@@ -152,11 +155,14 @@ class Task
             'estado' => $this->estado->value,
             'fecha_creacion' => $this->fechaCreacion,
             'fecha_completada' => $this->fechaCompletada,
+            'fecha_vencimiento' => $this->fechaVencimiento,
         ];
     }
 
     /**
      * Genera una representacion formateada de la tarea para la terminal.
+     *
+     * Incluye un indicador de vencimiento si la tarea esta vencida.
      *
      * @return string Linea formateada con colores ANSI
      */
@@ -166,13 +172,24 @@ class Task
         $indicador = $this->prioridad->indicador();
         $prioridad = $this->prioridad->colorizado();
 
+        // Indicador de tarea vencida
+        $vencida = '';
+        if (
+            $this->fechaVencimiento !== null
+            && $this->estado === Status::Pendiente
+            && $this->fechaVencimiento < date('Y-m-d')
+        ) {
+            $vencida = " \033[31m[VENCIDA]\033[0m";
+        }
+
         return sprintf(
-            "  \033[36m#%-4d\033[0m %s %s %-30s [%s]",
+            "  \033[36m#%-4d\033[0m %s %s %-30s [%s]%s",
             $this->id,
             $casilla,
             $indicador,
             mb_substr($this->titulo, 0, 30),
             $prioridad,
+            $vencida,
         );
     }
 
@@ -193,6 +210,14 @@ class Task
 
         if ($this->fechaCompletada !== null) {
             $lineas[] = "  Completada:  {$this->fechaCompletada}";
+        }
+
+        if ($this->fechaVencimiento !== null) {
+            $vencimientoTexto = $this->fechaVencimiento;
+            if ($this->estado === Status::Pendiente && $this->fechaVencimiento < date('Y-m-d')) {
+                $vencimientoTexto = "\033[31m{$this->fechaVencimiento} (VENCIDA)\033[0m";
+            }
+            $lineas[] = "  Vencimiento: {$vencimientoTexto}";
         }
 
         $lineas[] = "\033[1;36m" . str_repeat('-', 35) . "\033[0m";

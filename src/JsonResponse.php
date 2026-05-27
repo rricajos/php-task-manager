@@ -64,6 +64,30 @@ class JsonResponse
     }
 
     /**
+     * Envia una respuesta JSON paginada exitosa.
+     *
+     * Incluye los datos solicitados junto con metadatos de paginacion
+     * (pagina actual, total, paginas totales, etc).
+     *
+     * @param array<int, mixed> $data Datos de la pagina actual
+     * @param array<string, int> $pagination Metadatos de paginacion
+     * @param string $message Mensaje descriptivo opcional
+     * @return never Termina la ejecucion despues de enviar la respuesta
+     */
+    public static function paginated(array $data, array $pagination, string $message = 'OK'): never
+    {
+        self::enviar(
+            body: [
+                'success' => true,
+                'message' => $message,
+                'data' => $data,
+                'pagination' => $pagination,
+            ],
+            code: 200,
+        );
+    }
+
+    /**
      * Envia la respuesta HTTP con cabeceras JSON y codigo de estado.
      *
      * Establece el Content-Type como application/json, codifica el cuerpo
@@ -88,29 +112,5 @@ class JsonResponse
         );
 
         exit;
-    }
-
-    /**
-     * Traduce un codigo de estado HTTP a su texto descriptivo.
-     *
-     * @param int $code Codigo de estado HTTP
-     * @return string Texto descriptivo del codigo
-     */
-    public static function textoEstado(int $code): string
-    {
-        return match ($code) {
-            200 => 'OK',
-            201 => 'Created',
-            204 => 'No Content',
-            400 => 'Bad Request',
-            401 => 'Unauthorized',
-            403 => 'Forbidden',
-            404 => 'Not Found',
-            405 => 'Method Not Allowed',
-            409 => 'Conflict',
-            422 => 'Unprocessable Entity',
-            500 => 'Internal Server Error',
-            default => 'Unknown',
-        };
     }
 }

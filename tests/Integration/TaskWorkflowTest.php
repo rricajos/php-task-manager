@@ -36,8 +36,12 @@ class TaskWorkflowTest extends TestCase
         Database::resetInstance();
         Database::getInstance(':memory:');
 
-        $this->repository = new TaskRepository();
-        $this->service = new TaskService($this->repository);
+        // Insertar un usuario de prueba para satisfacer la FK
+        $pdo = Database::getInstance()->getConnection();
+        $pdo->exec("INSERT INTO users (username, password_hash) VALUES ('testuser', 'hash')");
+
+        $this->repository = new TaskRepository(userId: 1);
+        $this->service = new TaskService(repository: $this->repository);
     }
 
     protected function tearDown(): void
@@ -371,5 +375,132 @@ class TaskWorkflowTest extends TestCase
         $this->assertSame(3, $statsPostDelete['total']);
         $this->assertSame(1, $statsPostDelete['completadas']);
         $this->assertSame(1, $statsPostDelete['por_prioridad']['alta']);
+    }
+
+    // ---------------------------------------------------------------
+    //  Tests de edicion (actualizarTarea)
+    // ---------------------------------------------------------------
+
+    public function testFlujoCompletoConEdicion(): void
+    {
+        // 1. Crear tarea
+        $tarea = $this->service->crearTarea(
+            titulo: 'Titulo inicial',
+            descripcion: 'Descripcion inicial',
+            prioridad: 'baja',
+        );
+
+        $this->assertSame('Titulo inicial', $tarea->titulo);
+        $this->assertSame('Descripcion inicial', $tarea->descripcion);
+        $this->assertSame(Priority::Baja, $tarea->prioridad);
+
+        // 2. Editar titulo
+        $editada = $this->service->actualizarTarea(
+            id: $tarea->id,
+            titulo: 'Titulo editado',
+        );
+
+        $this->assertSame('Titulo editado', $editada->titulo);
+        $this->assertSame('Descripcion inicial', $editada->descripcion);
+        $this->assertSame(Priority::Baja, $editada->prioridad);
+
+        // 3. Editar multiples campos
+        $editada2 = $this->service->actualizarTarea(
+            id: $tarea->id,
+            descripcion: 'Descripcion editada',
+            prioridad: 'alta',
+        );
+
+        $this->assertSame('Titulo editado', $editada2->titulo);
+        $this->assertSame('Descripcion editada', $editada2->descripcion);
+        $this->assertSame(Priority::Alta, $editada2->prioridad);
+
+        // 4. Verificar que la tarea persiste con los cambios
+        $verificada = $this->service->obtenerTarea($tarea->id);
+        $this->assertSame('Titulo editado', $verificada->titulo);
+        $this->assertSame('Descripcion editada', $verificada->descripcion);
+        $this->assertSame(Priority::Alta, $verificada->prioridad);
+
+        // 5. Completar la tarea editada
+        $completada = $this->service->completarTarea($tarea->id);
+        $this->assertSame(Status::Completada, $completada->estado);
+    }
+
+    public function testEdicionConFechaVencimiento(): void
+    {
+        // Crear tarea con fecha de vencimiento
+        $tarea = $this->service->crearTarea(
+            titulo: 'Tarea con deadline',
+            descripcion: '',
+            prioridad: 'alta',
+            fechaVencimiento: '2026-06-15',
+        );
+
+        $this->assertSame('2026-06-15', $tarea->fechaVencimiento);
+
+        // Cambiar la fecha de vencimiento
+        $editada = $this->service->actualizarTarea(
+            id: $tarea->id,
+            fechaVencimiento: '2026-07-01',
+        );
+
+        $this->assertSame('2026-07-01', $editada->fechaVencimiento);
+
+        // Eliminar la fecha de vencimiento
+        $sinFecha = $this->service->actualizarTarea(
+            id: $tarea->id,
+            fechaVencimiento: '',
+        );
+
+        $this->assertNull($sinFecha->fechaVencimiento);
+    }
+
+    public function testObtenerTareaUsandoServicio(): void
+    {
+        $creada = $this->service->crearTarea(
+            titulo: 'Tarea obtenible',
+            descripcion: 'Para probar obtenerTarea',
+            prioridad: 'media',
+        );
+
+        $obtenida = $this->service->obtenerTarea($creada->id);
+
+        $this->assertSame($creada->id, $obtenida->id);
+        $this->assertSame('Tarea obtenible', $obtenida->titulo);
+        $this->assertSame('Para probar obtenerTarea', $obtenida->descripcion);
+    }
+
+    // ---------------------------------------------------------------
+    //  Tests de paginacion en flujo de integracion
+    // ---------------------------------------------------------------
+
+    public function testListadoPaginado(): void
+    {
+        // Crear 5 tareas
+        for ($i = 1; $i <= 5; $i++) {
+            $this->service->crearTarea("Tarea {$i}", '', 'media');
+        }
+
+        // Pagina 1 con 2 por pagina
+        $pagina1 = $this->service->listarTareas(
+            filtro: 'todas',
+            page: 1,
+            perPage: 2,
+        );
+
+        $this->assertSame(5, $pagina1['total']);
+        $this->assertSame(1, $pagina1['page']);
+        $this->assertSame(2, $pagina1['per_page']);
+        $this->assertSame(3, $pagina1['total_pages']);
+        $this->assertCount(2, $pagina1['tareas']);
+
+        // Pagina 3 con 2 por pagina (solo 1 resultado)
+        $pagina3 = $this->service->listarTareas(
+            filtro: 'todas',
+            page: 3,
+            perPage: 2,
+        );
+
+        $this->assertCount(1, $pagina3['tareas']);
     }
 }

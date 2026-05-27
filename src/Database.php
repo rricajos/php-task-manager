@@ -11,8 +11,8 @@ use PDOException;
  * Conexion a base de datos usando el patron Singleton.
  *
  * Garantiza una unica instancia de conexion PDO a SQLite durante
- * todo el ciclo de vida de la aplicacion. Crea la tabla de tareas
- * automaticamente si no existe.
+ * todo el ciclo de vida de la aplicacion. Crea las tablas de usuarios
+ * y tareas automaticamente si no existen.
  *
  * Patron: Singleton
  * Caracteristicas PHP 8: constructor promotion, readonly, match
@@ -52,6 +52,9 @@ class Database
             // Habilitar claves foraneas en SQLite
             $this->pdo->exec('PRAGMA foreign_keys = ON');
 
+            // Habilitar modo WAL para mejor rendimiento concurrente
+            $this->pdo->exec('PRAGMA journal_mode = WAL');
+
             // Inicializar la estructura de la base de datos
             $this->inicializarTablas();
         } catch (PDOException $e) {
@@ -72,8 +75,21 @@ class Database
     public static function getInstance(?string $dbPath = null): self
     {
         if (self::$instance === null) {
-            // Ruta por defecto: data/tasks.db relativo al directorio del proyecto
-            $path = $dbPath ?? dirname(__DIR__) . '/data/tasks.db';
+            // Leer ruta desde variable de entorno con fallback
+            $envPath = getenv('DB_PATH');
+            $defaultPath = dirname(__DIR__) . '/data/tasks.db';
+
+            if ($dbPath !== null) {
+                $path = $dbPath;
+            } elseif ($envPath !== false && $envPath !== '') {
+                // Si DB_PATH es relativa, resolverla desde el directorio del proyecto
+                $path = str_starts_with($envPath, '/')
+                    ? $envPath
+                    : dirname(__DIR__) . '/' . $envPath;
+            } else {
+                $path = $defaultPath;
+            }
+
             self::$instance = new self($path);
         }
 
@@ -92,30 +108,58 @@ class Database
 
     /**
      * Crea las tablas necesarias si no existen.
+     *
+     * Se crean en orden: primero users (sin dependencias),
+     * luego tasks (con FK a users).
+     *
+     * Estructura de la tabla users:
+     * - id: clave primaria autoincremental
+     * - username: nombre de usuario unico
+     * - password_hash: contrasena hasheada con bcrypt
+     * - created_at: fecha de registro
+     *
      * Estructura de la tabla tasks:
      * - id: clave primaria autoincremental
+     * - user_id: clave foranea a users(id)
      * - titulo: titulo de la tarea (obligatorio)
      * - descripcion: descripcion detallada (opcional)
      * - prioridad: alta, media o baja
      * - estado: pendiente o completada
      * - fecha_creacion: timestamp de creacion
      * - fecha_completada: timestamp de cuando se completo (nullable)
+     * - fecha_vencimiento: fecha limite de la tarea (nullable)
      */
     private function inicializarTablas(): void
     {
-        $sql = <<<'SQL'
+        // Crear tabla de usuarios primero (dependencia de FK)
+        $sqlUsers = <<<'SQL'
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        SQL;
+
+        $this->pdo->exec($sqlUsers);
+
+        // Crear tabla de tareas con FK a users
+        $sqlTasks = <<<'SQL'
             CREATE TABLE IF NOT EXISTS tasks (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
                 titulo TEXT NOT NULL,
                 descripcion TEXT DEFAULT '',
                 prioridad TEXT NOT NULL DEFAULT 'media' CHECK(prioridad IN ('alta', 'media', 'baja')),
                 estado TEXT NOT NULL DEFAULT 'pendiente' CHECK(estado IN ('pendiente', 'completada')),
                 fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP,
-                fecha_completada DATETIME DEFAULT NULL
+                fecha_completada DATETIME DEFAULT NULL,
+                fecha_vencimiento DATE DEFAULT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id)
             )
         SQL;
 
-        $this->pdo->exec($sql);
+        $this->pdo->exec($sqlTasks);
     }
 
     /**

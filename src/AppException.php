@@ -38,6 +38,8 @@ class ValidationException extends AppException
     public const ERROR_PRIORIDAD_INVALIDA = 2001;
     public const ERROR_ESTADO_INVALIDO = 2002;
     public const ERROR_ID_INVALIDO = 2003;
+    public const ERROR_FORMATO_INVALIDO = 2004;
+    public const ERROR_LONGITUD_INVALIDA = 2005;
 
     /**
      * @param string $message Mensaje descriptivo del error de validacion

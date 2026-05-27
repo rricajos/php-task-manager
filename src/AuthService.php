@@ -21,11 +21,8 @@ use PDOException;
  */
 class AuthService
 {
-    /** Clave secreta para firmar tokens JWT (en produccion: variable de entorno) */
-    private const JWT_SECRET = 'mini_project_api_secret_key_2024';
-
-    /** Duracion del token en segundos (24 horas) */
-    private const JWT_TTL = 86400;
+    /** Duracion del token en segundos (24 horas por defecto) */
+    private const JWT_TTL_DEFAULT = 86400;
 
     /** Algoritmo de firma para el JWT */
     private const JWT_ALGO = 'SHA256';
@@ -34,38 +31,36 @@ class AuthService
     private readonly PDO $pdo;
 
     /**
+     * Obtiene la clave secreta JWT desde variable de entorno con fallback.
+     *
+     * @return string Clave secreta para firmar tokens JWT
+     */
+    private static function getJwtSecret(): string
+    {
+        $secret = getenv('JWT_SECRET');
+        return ($secret !== false && $secret !== '') ? $secret : 'mini_project_api_secret_key_2024';
+    }
+
+    /**
+     * Obtiene la duracion del token JWT desde variable de entorno con fallback.
+     *
+     * @return int Duracion en segundos
+     */
+    private static function getJwtTtl(): int
+    {
+        $ttl = getenv('JWT_TTL');
+        return ($ttl !== false && $ttl !== '') ? (int) $ttl : self::JWT_TTL_DEFAULT;
+    }
+
+    /**
      * Inicializa el servicio de autenticacion.
      *
-     * Obtiene la conexion desde el Singleton de Database y crea
-     * la tabla de usuarios si no existe.
+     * Obtiene la conexion desde el Singleton de Database.
+     * La tabla de usuarios se crea en Database::inicializarTablas().
      */
     public function __construct()
     {
         $this->pdo = Database::getInstance()->getConnection();
-        $this->inicializarTablaUsuarios();
-    }
-
-    /**
-     * Crea la tabla de usuarios si no existe.
-     *
-     * Estructura:
-     * - id: clave primaria autoincremental
-     * - username: nombre de usuario unico
-     * - password_hash: contrasena hasheada con bcrypt
-     * - created_at: fecha de registro
-     */
-    private function inicializarTablaUsuarios(): void
-    {
-        $sql = <<<'SQL'
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT NOT NULL UNIQUE,
-                password_hash TEXT NOT NULL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        SQL;
-
-        $this->pdo->exec($sql);
     }
 
     /**
@@ -95,7 +90,7 @@ class AuthService
         if (mb_strlen($username) < 3 || mb_strlen($username) > 50) {
             throw new ValidationException(
                 message: 'El nombre de usuario debe tener entre 3 y 50 caracteres',
-                code: ValidationException::ERROR_CAMPO_VACIO,
+                code: ValidationException::ERROR_FORMATO_INVALIDO,
                 campo: 'username',
             );
         }
@@ -103,7 +98,7 @@ class AuthService
         if (!preg_match('/^[a-zA-Z0-9_]+$/', $username)) {
             throw new ValidationException(
                 message: 'El nombre de usuario solo puede contener letras, numeros y guiones bajos',
-                code: ValidationException::ERROR_CAMPO_VACIO,
+                code: ValidationException::ERROR_FORMATO_INVALIDO,
                 campo: 'username',
             );
         }
@@ -112,7 +107,7 @@ class AuthService
         if (mb_strlen($password) < 6) {
             throw new ValidationException(
                 message: 'La contrasena debe tener al menos 6 caracteres',
-                code: ValidationException::ERROR_CAMPO_VACIO,
+                code: ValidationException::ERROR_LONGITUD_INVALIDA,
                 campo: 'password',
             );
         }
@@ -192,6 +187,8 @@ class AuthService
                 );
             }
 
+            $ttl = self::getJwtTtl();
+
             // Generar token JWT
             $token = $this->generarToken(
                 userId: (int) $user['id'],
@@ -201,7 +198,7 @@ class AuthService
             return [
                 'token' => $token,
                 'type' => 'Bearer',
-                'expires_in' => self::JWT_TTL,
+                'expires_in' => $ttl,
                 'user' => [
                     'id' => (int) $user['id'],
                     'username' => $user['username'],
@@ -245,7 +242,7 @@ class AuthService
 
         // Verificar la firma
         $firmaEsperada = $this->base64UrlEncode(
-            hash_hmac(self::JWT_ALGO, "{$headerB64}.{$payloadB64}", self::JWT_SECRET, true)
+            hash_hmac(self::JWT_ALGO, "{$headerB64}.{$payloadB64}", self::getJwtSecret(), true)
         );
 
         if (!hash_equals($firmaEsperada, $firmaB64)) {
@@ -341,6 +338,8 @@ class AuthService
      */
     private function generarToken(int $userId, string $username): string
     {
+        $ttl = self::getJwtTtl();
+
         // Cabecera del JWT
         $header = [
             'alg' => 'HS256',
@@ -351,8 +350,8 @@ class AuthService
         $payload = [
             'user_id' => $userId,
             'username' => $username,
-            'iat' => time(),                     // Emitido en (issued at)
-            'exp' => time() + self::JWT_TTL,     // Expira en
+            'iat' => time(),                 // Emitido en (issued at)
+            'exp' => time() + $ttl,          // Expira en
         ];
 
         // Codificar header y payload en Base64URL
@@ -361,7 +360,7 @@ class AuthService
 
         // Generar la firma HMAC-SHA256
         $firma = $this->base64UrlEncode(
-            hash_hmac(self::JWT_ALGO, "{$headerB64}.{$payloadB64}", self::JWT_SECRET, true)
+            hash_hmac(self::JWT_ALGO, "{$headerB64}.{$payloadB64}", self::getJwtSecret(), true)
         );
 
         // Concatenar las tres partes con puntos
@@ -404,6 +403,22 @@ class AuthService
     }
 
     // ---------------------------------------------------------------
+    //  Metodos publicos de consulta de usuarios
+    // ---------------------------------------------------------------
+
+    /**
+     * Obtiene el perfil del usuario autenticado por su ID.
+     *
+     * @param int $userId ID del usuario autenticado
+     * @return array{id: int, username: string, created_at: string} Datos del perfil
+     * @throws NotFoundException Si el usuario no existe
+     */
+    public function obtenerPerfil(int $userId): array
+    {
+        return $this->obtenerUsuarioPorId($userId);
+    }
+
+    // ---------------------------------------------------------------
     //  Metodos privados de consulta de usuarios
     // ---------------------------------------------------------------
 
@@ -430,7 +445,7 @@ class AuthService
      * @return array{id: int, username: string, created_at: string} Datos del usuario
      * @throws NotFoundException Si el usuario no existe
      */
-    private function obtenerUsuarioPorId(int $id): array
+    public function obtenerUsuarioPorId(int $id): array
     {
         $stmt = $this->pdo->prepare(
             'SELECT id, username, created_at FROM users WHERE id = :id'

@@ -367,4 +367,180 @@ class TaskTest extends TestCase
         // No debe contener la linea "Completada:" si fechaCompletada es null
         $this->assertStringNotContainsString('Completada:', $detalle);
     }
+
+    // ---------------------------------------------------------------
+    //  Tests de la propiedad fechaVencimiento
+    // ---------------------------------------------------------------
+
+    public function testCrearTareaConFechaVencimiento(): void
+    {
+        $task = new Task(
+            id: 1,
+            titulo: 'Tarea con vencimiento',
+            descripcion: 'Debe completarse antes de la fecha',
+            prioridad: Priority::Alta,
+            estado: Status::Pendiente,
+            fechaCreacion: '2026-05-01 10:00:00',
+            fechaCompletada: null,
+            fechaVencimiento: '2026-12-31',
+        );
+
+        $this->assertSame('2026-12-31', $task->fechaVencimiento);
+    }
+
+    public function testCrearTareaSinFechaVencimientoEsNull(): void
+    {
+        $task = new Task(
+            id: 1,
+            titulo: 'Tarea sin vencimiento',
+            descripcion: '',
+            prioridad: Priority::Media,
+        );
+
+        $this->assertNull($task->fechaVencimiento);
+    }
+
+    public function testFechaVencimientoEnToArray(): void
+    {
+        $task = new Task(
+            id: 5,
+            titulo: 'Tarea con fecha limite',
+            descripcion: '',
+            prioridad: Priority::Alta,
+            estado: Status::Pendiente,
+            fechaCreacion: '2026-05-01 10:00:00',
+            fechaCompletada: null,
+            fechaVencimiento: '2026-06-15',
+        );
+
+        $array = $task->toArray();
+
+        $this->assertArrayHasKey('fecha_vencimiento', $array);
+        $this->assertSame('2026-06-15', $array['fecha_vencimiento']);
+    }
+
+    public function testFechaVencimientoNullEnToArray(): void
+    {
+        $task = new Task(
+            id: 1,
+            titulo: 'Sin vencimiento',
+            descripcion: '',
+            prioridad: Priority::Baja,
+        );
+
+        $array = $task->toArray();
+
+        $this->assertArrayHasKey('fecha_vencimiento', $array);
+        $this->assertNull($array['fecha_vencimiento']);
+    }
+
+    public function testFromRowConFechaVencimiento(): void
+    {
+        $row = [
+            'id' => '10',
+            'titulo' => 'Tarea con fecha',
+            'descripcion' => 'Descripcion',
+            'prioridad' => 'alta',
+            'estado' => 'pendiente',
+            'fecha_creacion' => '2026-05-01 09:00:00',
+            'fecha_completada' => null,
+            'fecha_vencimiento' => '2026-06-30',
+        ];
+
+        $task = Task::fromRow($row);
+
+        $this->assertSame('2026-06-30', $task->fechaVencimiento);
+    }
+
+    public function testFromRowSinFechaVencimientoEsNull(): void
+    {
+        $row = [
+            'id' => '10',
+            'titulo' => 'Tarea sin fecha',
+            'descripcion' => '',
+            'prioridad' => 'media',
+            'estado' => 'pendiente',
+            'fecha_creacion' => '2026-05-01 09:00:00',
+            'fecha_completada' => null,
+        ];
+
+        $task = Task::fromRow($row);
+
+        $this->assertNull($task->fechaVencimiento);
+    }
+
+    public function testFormatoDetalleConFechaVencimiento(): void
+    {
+        $task = new Task(
+            id: 1,
+            titulo: 'Tarea con vencimiento',
+            descripcion: 'Desc',
+            prioridad: Priority::Alta,
+            estado: Status::Pendiente,
+            fechaCreacion: '2026-05-01 10:00:00',
+            fechaCompletada: null,
+            fechaVencimiento: '2099-12-31',
+        );
+
+        $detalle = $task->formatoDetalle();
+
+        $this->assertStringContainsString('Vencimiento:', $detalle);
+        $this->assertStringContainsString('2099-12-31', $detalle);
+    }
+
+    public function testFormatoDetalleSinFechaVencimiento(): void
+    {
+        $task = new Task(
+            id: 1,
+            titulo: 'Sin vencimiento',
+            descripcion: '',
+            prioridad: Priority::Baja,
+            estado: Status::Pendiente,
+            fechaCreacion: '2026-05-01 10:00:00',
+            fechaCompletada: null,
+            fechaVencimiento: null,
+        );
+
+        $detalle = $task->formatoDetalle();
+
+        $this->assertStringNotContainsString('Vencimiento:', $detalle);
+    }
+
+    public function testFormatoLineaTareaVencidaMuestraIndicador(): void
+    {
+        // Use a date far in the past to ensure it is always "vencida"
+        $task = new Task(
+            id: 1,
+            titulo: 'Tarea vencida',
+            descripcion: '',
+            prioridad: Priority::Alta,
+            estado: Status::Pendiente,
+            fechaCreacion: '2020-01-01 10:00:00',
+            fechaCompletada: null,
+            fechaVencimiento: '2020-01-01',
+        );
+
+        $linea = $task->formatoLinea();
+
+        $this->assertStringContainsString('VENCIDA', $linea);
+    }
+
+    public function testFormatoLineaTareaCompletadaNoMuestraVencida(): void
+    {
+        // A completed task should not show VENCIDA even if fecha_vencimiento is past
+        $task = new Task(
+            id: 1,
+            titulo: 'Tarea completada',
+            descripcion: '',
+            prioridad: Priority::Alta,
+            estado: Status::Completada,
+            fechaCreacion: '2020-01-01 10:00:00',
+            fechaCompletada: '2020-01-02 10:00:00',
+            fechaVencimiento: '2020-01-01',
+        );
+
+        $linea = $task->formatoLinea();
+
+        $this->assertStringNotContainsString('VENCIDA', $linea);
+    }
 }

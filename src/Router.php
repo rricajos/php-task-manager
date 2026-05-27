@@ -120,6 +120,18 @@ class Router
     }
 
     /**
+     * Registra una ruta PUT.
+     *
+     * @param string $pattern Patron de URI
+     * @param \Closure $handler Funcion manejadora
+     * @return self Para encadenamiento fluido
+     */
+    public function put(string $pattern, \Closure $handler): self
+    {
+        return $this->addRoute(method: 'PUT', pattern: $pattern, handler: $handler);
+    }
+
+    /**
      * Registra una ruta DELETE.
      *
      * @param string $pattern Patron de URI

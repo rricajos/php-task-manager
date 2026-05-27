@@ -135,6 +135,7 @@ function mostrarMenu(): void
     echo YELLOW       . "  │  " . GREEN  . "5." . RESET . " Buscar tareas                   " . YELLOW . "│" . RESET . PHP_EOL;
     echo YELLOW       . "  │  " . GREEN  . "6." . RESET . " Exportar tareas                 " . YELLOW . "│" . RESET . PHP_EOL;
     echo YELLOW       . "  │  " . GREEN  . "7." . RESET . " Estadisticas                    " . YELLOW . "│" . RESET . PHP_EOL;
+    echo YELLOW       . "  │  " . GREEN  . "8." . RESET . " Editar tarea                    " . YELLOW . "│" . RESET . PHP_EOL;
     echo YELLOW       . "  │  " . RED    . "0." . RESET . " Salir                           " . YELLOW . "│" . RESET . PHP_EOL;
     echo YELLOW       . "  │                                       │" . RESET . PHP_EOL;
     echo YELLOW . BOLD . "  └───────────────────────────────────────┘" . RESET . PHP_EOL;
@@ -230,7 +231,7 @@ function mostrarListaTareas(array $tareas): void
 
 /**
  * Accion: Agregar una nueva tarea.
- * Solicita titulo, descripcion y prioridad al usuario.
+ * Solicita titulo, descripcion, prioridad y fecha de vencimiento al usuario.
  *
  * @param TaskService $service Servicio de tareas
  */
@@ -256,11 +257,17 @@ function accionAgregarTarea(TaskService $service): void
         $prioridad = 'media';
     }
 
+    $fechaVencimiento = leerEntrada('Fecha de vencimiento (YYYY-MM-DD, opcional): ');
+    if ($fechaVencimiento === '') {
+        $fechaVencimiento = null;
+    }
+
     try {
         $tarea = $service->crearTarea(
             titulo: $titulo,
             descripcion: $descripcion,
             prioridad: $prioridad,
+            fechaVencimiento: $fechaVencimiento,
         );
 
         mostrarExito("Tarea #{$tarea->id} creada exitosamente.");
@@ -459,6 +466,96 @@ function accionEstadisticas(TaskService $service): void
     }
 }
 
+/**
+ * Accion: Editar una tarea existente.
+ *
+ * Muestra las tareas, solicita el ID, y permite modificar
+ * titulo, descripcion, prioridad y fecha de vencimiento.
+ * Dejar un campo vacio mantiene el valor actual.
+ *
+ * @param TaskService $service Servicio de tareas
+ */
+function accionEditarTarea(TaskService $service): void
+{
+    echo PHP_EOL . MAGENTA . BOLD . "  === EDITAR TAREA ===" . RESET . PHP_EOL . PHP_EOL;
+
+    // Mostrar todas las tareas para referencia
+    try {
+        $todas = $service->listarTareas('todas');
+        if (empty($todas)) {
+            mostrarInfo('No hay tareas para editar.');
+            return;
+        }
+        mostrarListaTareas($todas);
+    } catch (AppException $e) {
+        mostrarError($e->getMessage());
+        return;
+    }
+
+    echo PHP_EOL;
+    $id = leerEntrada('ID de la tarea a editar: ');
+
+    if ($id === '') {
+        mostrarError('Debes ingresar un ID.');
+        return;
+    }
+
+    // Obtener la tarea actual para mostrar valores
+    try {
+        $tareaActual = $service->obtenerTarea($id);
+    } catch (ValidationException | NotFoundException $e) {
+        mostrarError($e->getMessage());
+        return;
+    }
+
+    echo PHP_EOL;
+    echo $tareaActual->formatoDetalle() . PHP_EOL;
+    echo PHP_EOL;
+    mostrarInfo('Ingresa los nuevos valores (Enter para mantener el actual):');
+    echo PHP_EOL;
+
+    // Solicitar nuevos valores
+    $nuevoTitulo = leerEntrada("Titulo [{$tareaActual->titulo}]: ");
+    $nuevaDescripcion = leerEntrada("Descripcion [{$tareaActual->descripcion}]: ");
+
+    echo CYAN . "  Prioridad [{$tareaActual->prioridad->value}] (" . RED . "alta" . RESET . CYAN . "/" . YELLOW . "media" . RESET . CYAN . "/" . GREEN . "baja" . RESET . CYAN . "): " . RESET;
+    $nuevaPrioridad = trim(fgets(STDIN) ?: '');
+
+    $fechaActual = $tareaActual->fechaVencimiento ?? 'ninguna';
+    $nuevaFecha = leerEntrada("Fecha vencimiento [{$fechaActual}] (YYYY-MM-DD, 'borrar' para quitar): ");
+
+    // Preparar parametros: null = no cambiar, cadena = nuevo valor
+    $titulo = $nuevoTitulo !== '' ? $nuevoTitulo : null;
+    $descripcion = $nuevaDescripcion !== '' ? $nuevaDescripcion : null;
+    $prioridad = $nuevaPrioridad !== '' ? $nuevaPrioridad : null;
+
+    $fechaVencimiento = null;
+    if ($nuevaFecha !== '') {
+        if (strtolower($nuevaFecha) === 'borrar') {
+            // Cadena vacia indica eliminar la fecha
+            $fechaVencimiento = '';
+        } else {
+            $fechaVencimiento = $nuevaFecha;
+        }
+    }
+
+    try {
+        $tareaActualizada = $service->actualizarTarea(
+            id: $id,
+            titulo: $titulo,
+            descripcion: $descripcion,
+            prioridad: $prioridad,
+            fechaVencimiento: $fechaVencimiento,
+        );
+
+        mostrarExito("Tarea #{$tareaActualizada->id} actualizada exitosamente.");
+        echo PHP_EOL;
+        echo $tareaActualizada->formatoDetalle() . PHP_EOL;
+    } catch (ValidationException | NotFoundException $e) {
+        mostrarError($e->getMessage());
+    }
+}
+
 // ---------------------------------------------------------------
 //  Bucle principal de la aplicacion
 // ---------------------------------------------------------------
@@ -476,7 +573,8 @@ function main(): void
         Database::getInstance();
 
         // Crear servicios con inyeccion de dependencias
-        $repository = new TaskRepository();
+        // En modo CLI se usa userId=1 (usuario por defecto)
+        $repository = new TaskRepository(userId: 1);
         $service = new TaskService(repository: $repository);
         $exportService = new ExportService(
             outputDir: __DIR__ . '/data',
@@ -490,7 +588,7 @@ function main(): void
             mostrarBanner();
             mostrarMenu();
 
-            $opcion = leerEntrada('Selecciona una opcion [0-7]: ');
+            $opcion = leerEntrada('Selecciona una opcion [0-8]: ');
 
             // Usar match para despachar la opcion seleccionada
             match ($opcion) {
@@ -501,8 +599,9 @@ function main(): void
                 '5' => accionBuscarTareas($service),
                 '6' => accionExportarTareas($service, $exportService),
                 '7' => accionEstadisticas($service),
+                '8' => accionEditarTarea($service),
                 '0', 'q', 'salir', 'exit' => $ejecutando = false,
-                default => mostrarError("Opcion no valida: '{$opcion}'. Usa un numero del 0 al 7."),
+                default => mostrarError("Opcion no valida: '{$opcion}'. Usa un numero del 0 al 8."),
             };
 
             // Pausar antes de volver al menu (excepto al salir)

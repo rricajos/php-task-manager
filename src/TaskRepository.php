@@ -14,6 +14,9 @@ use PDOException;
  * Usa sentencias preparadas (prepared statements) para prevenir
  * inyeccion SQL y manejo de errores adecuado.
  *
+ * Todas las consultas filtran por user_id para garantizar aislamiento
+ * de datos entre usuarios.
+ *
  * Patron: Repository
  * Caracteristicas PHP 8: constructor promotion, readonly, named arguments, match
  */
@@ -23,23 +26,29 @@ class TaskRepository
     private readonly PDO $pdo;
 
     /**
-     * Inicializa el repositorio obteniendo la conexion desde el Singleton.
+     * Inicializa el repositorio con el ID del usuario propietario.
+     *
+     * @param int $userId ID del usuario autenticado
      */
-    public function __construct()
-    {
+    public function __construct(
+        private readonly int $userId,
+    ) {
         $this->pdo = Database::getInstance()->getConnection();
     }
 
     /**
-     * Obtiene todas las tareas ordenadas por fecha de creacion descendente.
+     * Obtiene todas las tareas del usuario ordenadas por fecha de creacion descendente.
      *
-     * @return Task[] Lista de todas las tareas
+     * @return Task[] Lista de todas las tareas del usuario
      * @throws AppException Si ocurre un error de base de datos
      */
     public function findAll(): array
     {
         try {
-            $stmt = $this->pdo->query('SELECT * FROM tasks ORDER BY fecha_creacion DESC');
+            $stmt = $this->pdo->prepare(
+                'SELECT * FROM tasks WHERE user_id = :user_id ORDER BY fecha_creacion DESC'
+            );
+            $stmt->execute([':user_id' => $this->userId]);
             $rows = $stmt->fetchAll();
 
             // Mapear cada fila a una instancia de Task usando el metodo de fabrica
@@ -57,18 +66,23 @@ class TaskRepository
     }
 
     /**
-     * Busca una tarea por su identificador unico.
+     * Busca una tarea por su identificador unico (solo del usuario actual).
      *
      * @param int $id Identificador de la tarea
      * @return Task La tarea encontrada
-     * @throws NotFoundException Si la tarea no existe
+     * @throws NotFoundException Si la tarea no existe o no pertenece al usuario
      * @throws AppException Si ocurre un error de base de datos
      */
     public function findById(int $id): Task
     {
         try {
-            $stmt = $this->pdo->prepare('SELECT * FROM tasks WHERE id = :id');
-            $stmt->execute([':id' => $id]);
+            $stmt = $this->pdo->prepare(
+                'SELECT * FROM tasks WHERE id = :id AND user_id = :user_id'
+            );
+            $stmt->execute([
+                ':id' => $id,
+                ':user_id' => $this->userId,
+            ]);
             $row = $stmt->fetch();
 
             if ($row === false) {
@@ -92,7 +106,7 @@ class TaskRepository
     }
 
     /**
-     * Filtra tareas por estado (pendiente o completada).
+     * Filtra tareas del usuario por estado (pendiente o completada).
      *
      * @param Status $estado Estado por el cual filtrar
      * @return Task[] Lista de tareas con el estado dado
@@ -102,9 +116,12 @@ class TaskRepository
     {
         try {
             $stmt = $this->pdo->prepare(
-                'SELECT * FROM tasks WHERE estado = :estado ORDER BY fecha_creacion DESC'
+                'SELECT * FROM tasks WHERE user_id = :user_id AND estado = :estado ORDER BY fecha_creacion DESC'
             );
-            $stmt->execute([':estado' => $estado->value]);
+            $stmt->execute([
+                ':user_id' => $this->userId,
+                ':estado' => $estado->value,
+            ]);
             $rows = $stmt->fetchAll();
 
             return array_map(
@@ -121,21 +138,145 @@ class TaskRepository
     }
 
     /**
-     * Busca tareas cuyo titulo o descripcion contengan la palabra clave.
+     * Obtiene tareas del usuario con paginacion, ordenamiento y filtros opcionales.
+     *
+     * Construye una consulta dinamica con clausula WHERE para user_id y filtros
+     * opcionales de prioridad y estado. Valida los campos de ordenamiento
+     * contra una lista blanca para prevenir inyeccion SQL.
+     *
+     * @param int $limit Numero maximo de resultados por pagina
+     * @param int $offset Desplazamiento desde el inicio
+     * @param string $sortBy Campo de ordenamiento (validado contra whitelist)
+     * @param string $sortDir Direccion de ordenamiento: 'ASC' o 'DESC'
+     * @param string|null $priority Filtro opcional de prioridad (alta, media, baja)
+     * @param string|null $status Filtro opcional de estado (pendiente, completada)
+     * @return Task[] Lista de tareas paginadas
+     * @throws AppException Si ocurre un error de base de datos
+     */
+    public function findAllPaginated(
+        int $limit = 20,
+        int $offset = 0,
+        string $sortBy = 'fecha_creacion',
+        string $sortDir = 'DESC',
+        ?string $priority = null,
+        ?string $status = null,
+    ): array {
+        // Validar sortBy contra whitelist para prevenir inyeccion SQL
+        $allowedSortBy = ['fecha_creacion', 'titulo', 'prioridad', 'estado', 'fecha_vencimiento'];
+        if (!in_array($sortBy, $allowedSortBy, strict: true)) {
+            $sortBy = 'fecha_creacion';
+        }
+
+        // Validar sortDir
+        $sortDir = strtoupper($sortDir);
+        if (!in_array($sortDir, ['ASC', 'DESC'], strict: true)) {
+            $sortDir = 'DESC';
+        }
+
+        try {
+            // Construir clausula WHERE dinamica
+            $where = 'WHERE user_id = :user_id';
+            $params = [':user_id' => $this->userId];
+
+            if ($priority !== null) {
+                $where .= ' AND prioridad = :prioridad';
+                $params[':prioridad'] = $priority;
+            }
+
+            if ($status !== null) {
+                $where .= ' AND estado = :estado';
+                $params[':estado'] = $status;
+            }
+
+            $sql = "SELECT * FROM tasks {$where} ORDER BY {$sortBy} {$sortDir} LIMIT :limit OFFSET :offset";
+            $stmt = $this->pdo->prepare($sql);
+
+            // Bindear parametros de paginacion como enteros
+            foreach ($params as $key => $value) {
+                $stmt->bindValue($key, $value);
+            }
+            $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+            $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+
+            $stmt->execute();
+            $rows = $stmt->fetchAll();
+
+            return array_map(
+                callback: fn(array $row): Task => Task::fromRow($row),
+                array: $rows,
+            );
+        } catch (PDOException $e) {
+            throw new AppException(
+                message: "Error al obtener tareas paginadas: {$e->getMessage()}",
+                code: AppException::ERROR_DATABASE,
+                previous: $e,
+            );
+        }
+    }
+
+    /**
+     * Cuenta el total de tareas del usuario que coinciden con los filtros.
+     *
+     * Usado para calcular metadatos de paginacion (total de paginas, etc).
+     *
+     * @param string|null $priority Filtro opcional de prioridad
+     * @param string|null $status Filtro opcional de estado
+     * @return int Numero total de tareas que coinciden
+     * @throws AppException Si ocurre un error de base de datos
+     */
+    public function countFiltered(?string $priority = null, ?string $status = null): int
+    {
+        try {
+            $where = 'WHERE user_id = :user_id';
+            $params = [':user_id' => $this->userId];
+
+            if ($priority !== null) {
+                $where .= ' AND prioridad = :prioridad';
+                $params[':prioridad'] = $priority;
+            }
+
+            if ($status !== null) {
+                $where .= ' AND estado = :estado';
+                $params[':estado'] = $status;
+            }
+
+            $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM tasks {$where}");
+            $stmt->execute($params);
+
+            return (int) $stmt->fetchColumn();
+        } catch (PDOException $e) {
+            throw new AppException(
+                message: "Error al contar tareas filtradas: {$e->getMessage()}",
+                code: AppException::ERROR_DATABASE,
+                previous: $e,
+            );
+        }
+    }
+
+    /**
+     * Busca tareas del usuario cuyo titulo o descripcion contengan la palabra clave.
+     *
+     * Soporta paginacion con limit/offset para resultados grandes.
      *
      * @param string $keyword Palabra clave de busqueda
+     * @param int $limit Numero maximo de resultados por pagina
+     * @param int $offset Desplazamiento desde el inicio
      * @return Task[] Lista de tareas que coinciden con la busqueda
      * @throws AppException Si ocurre un error de base de datos
      */
-    public function search(string $keyword): array
+    public function search(string $keyword, int $limit = 20, int $offset = 0): array
     {
         try {
-            $stmt = $this->pdo->prepare(
-                'SELECT * FROM tasks
-                 WHERE titulo LIKE :keyword OR descripcion LIKE :keyword
-                 ORDER BY fecha_creacion DESC'
-            );
-            $stmt->execute([':keyword' => "%{$keyword}%"]);
+            $sql = 'SELECT * FROM tasks
+                 WHERE user_id = :user_id AND (titulo LIKE :keyword OR descripcion LIKE :keyword)
+                 ORDER BY fecha_creacion DESC
+                 LIMIT :limit OFFSET :offset';
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->bindValue(':user_id', $this->userId);
+            $stmt->bindValue(':keyword', "%{$keyword}%");
+            $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+            $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+            $stmt->execute();
             $rows = $stmt->fetchAll();
 
             return array_map(
@@ -152,7 +293,38 @@ class TaskRepository
     }
 
     /**
-     * Guarda una nueva tarea en la base de datos.
+     * Cuenta el total de tareas del usuario que coinciden con la busqueda.
+     *
+     * Usado para calcular metadatos de paginacion en busquedas.
+     *
+     * @param string $keyword Palabra clave de busqueda
+     * @return int Numero total de tareas que coinciden
+     * @throws AppException Si ocurre un error de base de datos
+     */
+    public function countSearch(string $keyword): int
+    {
+        try {
+            $stmt = $this->pdo->prepare(
+                'SELECT COUNT(*) FROM tasks
+                 WHERE user_id = :user_id AND (titulo LIKE :keyword OR descripcion LIKE :keyword)'
+            );
+            $stmt->execute([
+                ':user_id' => $this->userId,
+                ':keyword' => "%{$keyword}%",
+            ]);
+
+            return (int) $stmt->fetchColumn();
+        } catch (PDOException $e) {
+            throw new AppException(
+                message: "Error al contar resultados de busqueda: {$e->getMessage()}",
+                code: AppException::ERROR_DATABASE,
+                previous: $e,
+            );
+        }
+    }
+
+    /**
+     * Guarda una nueva tarea en la base de datos asociada al usuario actual.
      *
      * @param Task $task Tarea a guardar (sin id asignado)
      * @return Task Nueva instancia con el id generado por la BD
@@ -162,15 +334,17 @@ class TaskRepository
     {
         try {
             $stmt = $this->pdo->prepare(
-                'INSERT INTO tasks (titulo, descripcion, prioridad, estado)
-                 VALUES (:titulo, :descripcion, :prioridad, :estado)'
+                'INSERT INTO tasks (user_id, titulo, descripcion, prioridad, estado, fecha_vencimiento)
+                 VALUES (:user_id, :titulo, :descripcion, :prioridad, :estado, :fecha_vencimiento)'
             );
 
             $stmt->execute([
+                ':user_id' => $this->userId,
                 ':titulo' => $task->titulo,
                 ':descripcion' => $task->descripcion,
                 ':prioridad' => $task->prioridad->value,
                 ':estado' => $task->estado->value,
+                ':fecha_vencimiento' => $task->fechaVencimiento,
             ]);
 
             // Obtener el id generado y retornar la tarea completa desde la BD
@@ -187,28 +361,68 @@ class TaskRepository
     }
 
     /**
+     * Actualiza campos de una tarea existente del usuario actual.
+     *
+     * @param int $id Identificador de la tarea a actualizar
+     * @param array<string, mixed> $data Campos a actualizar (nombre_columna => valor)
+     * @return Task Tarea actualizada
+     * @throws NotFoundException Si la tarea no existe o no pertenece al usuario
+     * @throws AppException Si ocurre un error de base de datos
+     */
+    public function update(int $id, array $data): Task
+    {
+        // Verificar que la tarea existe y pertenece al usuario
+        $this->findById($id);
+
+        try {
+            $sets = [];
+            $params = [':id' => $id, ':user_id' => $this->userId];
+
+            foreach ($data as $col => $val) {
+                $sets[] = "{$col} = :{$col}";
+                $params[":{$col}"] = $val;
+            }
+
+            $sql = 'UPDATE tasks SET ' . implode(', ', $sets) . ' WHERE id = :id AND user_id = :user_id';
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute($params);
+
+            return $this->findById($id);
+        } catch (NotFoundException $e) {
+            throw $e;
+        } catch (PDOException $e) {
+            throw new AppException(
+                message: "Error al actualizar tarea #{$id}: {$e->getMessage()}",
+                code: AppException::ERROR_DATABASE,
+                previous: $e,
+            );
+        }
+    }
+
+    /**
      * Marca una tarea como completada y registra la fecha de completado.
      *
      * @param int $id Identificador de la tarea a completar
      * @return Task Tarea actualizada con estado completada
-     * @throws NotFoundException Si la tarea no existe
+     * @throws NotFoundException Si la tarea no existe o no pertenece al usuario
      * @throws AppException Si ocurre un error de base de datos
      */
     public function complete(int $id): Task
     {
-        // Verificar que la tarea existe antes de intentar actualizar
+        // Verificar que la tarea existe y pertenece al usuario
         $this->findById($id);
 
         try {
             $stmt = $this->pdo->prepare(
                 'UPDATE tasks
                  SET estado = :estado, fecha_completada = CURRENT_TIMESTAMP
-                 WHERE id = :id'
+                 WHERE id = :id AND user_id = :user_id'
             );
 
             $stmt->execute([
                 ':estado' => Status::Completada->value,
                 ':id' => $id,
+                ':user_id' => $this->userId,
             ]);
 
             return $this->findById($id);
@@ -224,21 +438,26 @@ class TaskRepository
     }
 
     /**
-     * Elimina una tarea de la base de datos de forma permanente.
+     * Elimina una tarea del usuario de la base de datos de forma permanente.
      *
      * @param int $id Identificador de la tarea a eliminar
      * @return bool true si se elimino correctamente
-     * @throws NotFoundException Si la tarea no existe
+     * @throws NotFoundException Si la tarea no existe o no pertenece al usuario
      * @throws AppException Si ocurre un error de base de datos
      */
     public function delete(int $id): bool
     {
-        // Verificar que la tarea existe antes de eliminar
+        // Verificar que la tarea existe y pertenece al usuario
         $this->findById($id);
 
         try {
-            $stmt = $this->pdo->prepare('DELETE FROM tasks WHERE id = :id');
-            $stmt->execute([':id' => $id]);
+            $stmt = $this->pdo->prepare(
+                'DELETE FROM tasks WHERE id = :id AND user_id = :user_id'
+            );
+            $stmt->execute([
+                ':id' => $id,
+                ':user_id' => $this->userId,
+            ]);
 
             return $stmt->rowCount() > 0;
         } catch (NotFoundException $e) {
@@ -253,7 +472,7 @@ class TaskRepository
     }
 
     /**
-     * Obtiene estadisticas generales de las tareas.
+     * Obtiene estadisticas generales de las tareas del usuario.
      *
      * Retorna un array asociativo con:
      * - total: numero total de tareas
@@ -268,21 +487,27 @@ class TaskRepository
     {
         try {
             // Conteo total
-            $total = (int) $this->pdo->query('SELECT COUNT(*) FROM tasks')->fetchColumn();
+            $stmtTotal = $this->pdo->prepare(
+                'SELECT COUNT(*) FROM tasks WHERE user_id = :user_id'
+            );
+            $stmtTotal->execute([':user_id' => $this->userId]);
+            $total = (int) $stmtTotal->fetchColumn();
 
             // Conteo por estado
-            $stmtEstado = $this->pdo->query(
-                'SELECT estado, COUNT(*) as cantidad FROM tasks GROUP BY estado'
+            $stmtEstado = $this->pdo->prepare(
+                'SELECT estado, COUNT(*) as cantidad FROM tasks WHERE user_id = :user_id GROUP BY estado'
             );
+            $stmtEstado->execute([':user_id' => $this->userId]);
             $porEstado = [];
             foreach ($stmtEstado->fetchAll() as $row) {
                 $porEstado[$row['estado']] = (int) $row['cantidad'];
             }
 
             // Conteo por prioridad
-            $stmtPrioridad = $this->pdo->query(
-                'SELECT prioridad, COUNT(*) as cantidad FROM tasks GROUP BY prioridad'
+            $stmtPrioridad = $this->pdo->prepare(
+                'SELECT prioridad, COUNT(*) as cantidad FROM tasks WHERE user_id = :user_id GROUP BY prioridad'
             );
+            $stmtPrioridad->execute([':user_id' => $this->userId]);
             $porPrioridad = [];
             foreach ($stmtPrioridad->fetchAll() as $row) {
                 $porPrioridad[$row['prioridad']] = (int) $row['cantidad'];

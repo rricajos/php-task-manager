@@ -15,12 +15,22 @@ namespace MiniProject;
 interface ExporterInterface
 {
     /**
-     * Exporta una lista de tareas al formato especifico.
+     * Exporta una lista de tareas al formato especifico (archivo).
      *
      * @param Task[] $tasks Lista de tareas a exportar
      * @return string Ruta del archivo generado
      */
     public function export(array $tasks): string;
+
+    /**
+     * Exporta una lista de tareas y retorna el contenido como string.
+     *
+     * Util para streaming directo en la API sin escribir a disco.
+     *
+     * @param Task[] $tasks Lista de tareas a exportar
+     * @return string Contenido exportado como string
+     */
+    public function exportToString(array $tasks): string;
 
     /**
      * Devuelve el nombre descriptivo del formato de exportacion.
@@ -94,6 +104,29 @@ class JsonExporter implements ExporterInterface
         }
 
         return $filepath;
+    }
+
+    /**
+     * Exporta las tareas a una cadena JSON sin escribir a disco.
+     *
+     * @param Task[] $tasks Lista de tareas a exportar
+     * @return string Contenido JSON como string
+     */
+    public function exportToString(array $tasks): string
+    {
+        $data = [
+            'exportado_en' => date('Y-m-d H:i:s'),
+            'total_tareas' => count($tasks),
+            'tareas' => array_map(
+                callback: fn(Task $t): array => $t->toArray(),
+                array: $tasks,
+            ),
+        ];
+
+        return json_encode(
+            value: $data,
+            flags: JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR,
+        );
     }
 
     /**
@@ -204,6 +237,60 @@ class CsvExporter implements ExporterInterface
     }
 
     /**
+     * Exporta las tareas a una cadena CSV sin escribir a disco.
+     *
+     * Usa php://temp como stream en memoria para generar el CSV.
+     *
+     * @param Task[] $tasks Lista de tareas a exportar
+     * @return string Contenido CSV como string
+     */
+    public function exportToString(array $tasks): string
+    {
+        $handle = fopen('php://temp', 'r+');
+
+        if ($handle === false) {
+            throw new AppException(
+                message: 'No se pudo abrir el stream temporal para CSV',
+                code: AppException::ERROR_FILESYSTEM,
+            );
+        }
+
+        // Escribir BOM UTF-8 para compatibilidad con Excel
+        fwrite($handle, "\xEF\xBB\xBF");
+
+        // Escribir encabezados
+        fputcsv($handle, [
+            'ID',
+            'Titulo',
+            'Descripcion',
+            'Prioridad',
+            'Estado',
+            'Fecha Creacion',
+            'Fecha Completada',
+        ]);
+
+        // Escribir cada tarea como una fila CSV
+        foreach ($tasks as $task) {
+            fputcsv($handle, [
+                $task->id,
+                $task->titulo,
+                $task->descripcion,
+                $task->prioridad->value,
+                $task->estado->value,
+                $task->fechaCreacion,
+                $task->fechaCompletada ?? '',
+            ]);
+        }
+
+        // Leer todo el contenido del stream
+        rewind($handle);
+        $content = stream_get_contents($handle);
+        fclose($handle);
+
+        return $content !== false ? $content : '';
+    }
+
+    /**
      * Devuelve el nombre del formato de exportacion.
      *
      * @return string 'CSV'
@@ -294,6 +381,34 @@ class ExportService
         $exporter = $this->exporters[$formato];
 
         return $exporter->export($tasks);
+    }
+
+    /**
+     * Exporta tareas como string (sin escribir a archivo) usando el exportador especificado.
+     *
+     * Util para streaming directo en la API REST.
+     *
+     * @param Task[] $tasks Lista de tareas a exportar
+     * @param string $formato Formato deseado: 'json' o 'csv'
+     * @return string Contenido exportado como string
+     * @throws ValidationException Si el formato no esta registrado
+     */
+    public function exportarComoString(array $tasks, string $formato = 'json'): string
+    {
+        $formato = strtolower(trim($formato));
+
+        if (!isset($this->exporters[$formato])) {
+            $disponibles = implode(', ', array_keys($this->exporters));
+            throw new ValidationException(
+                message: "Formato de exportacion '{$formato}' no disponible. Formatos disponibles: {$disponibles}",
+                code: ValidationException::ERROR_CAMPO_VACIO,
+                campo: 'formato',
+            );
+        }
+
+        $exporter = $this->exporters[$formato];
+
+        return $exporter->exportToString($tasks);
     }
 
     /**

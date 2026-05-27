@@ -13,7 +13,7 @@ declare(strict_types=1);
  *
  * Caracteristicas:
  * - Autenticacion JWT con registro y login
- * - CRUD completo de tareas
+ * - CRUD completo de tareas con aislamiento por usuario
  * - Busqueda, estadisticas y exportacion
  * - CORS habilitado para desarrollo
  * - Respuestas JSON consistentes con codigos HTTP apropiados
@@ -89,7 +89,7 @@ use MiniProject\AppException;
  * el origen a dominios especificos.
  */
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS');
+header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 header('Access-Control-Max-Age: 3600');
 
@@ -107,8 +107,9 @@ try {
     // Inicializar la base de datos (Singleton — reutiliza la existente)
     Database::getInstance();
 
-    // Crear servicios con inyeccion de dependencias (reutilizando las clases existentes)
-    $repository = new TaskRepository();
+    // Crear servicios con inyeccion de dependencias
+    // Se usa userId=1 como defecto; en rutas protegidas se reemplaza con el usuario autenticado
+    $repository = new TaskRepository(userId: 1);
     $taskService = new TaskService(repository: $repository);
     $exportService = new ExportService(
         outputDir: __DIR__ . '/data',
@@ -200,48 +201,68 @@ $router->post('/auth/login', function () use ($controller): void {
     $controller->login($body);
 });
 
+$router->get('/auth/me', function () use ($controller, $authService): void {
+    $userData = requireAuth($authService);
+    $controller->perfil($userData);
+});
+
 // --- Rutas protegidas de tareas ---
 // Nota: las rutas mas especificas (search, stats, export) van ANTES
 // de las parametrizadas ({id}) para evitar que {id} capture "search", etc.
 
 $router->get('/tasks/search', function () use ($controller, $authService): void {
-    requireAuth($authService);
+    $userData = requireAuth($authService);
+    $controller->setUserId($userData['user_id']);
     $controller->buscarTareas();
 });
 
 $router->get('/tasks/stats', function () use ($controller, $authService): void {
-    requireAuth($authService);
+    $userData = requireAuth($authService);
+    $controller->setUserId($userData['user_id']);
     $controller->estadisticas();
 });
 
 $router->get('/tasks/export', function () use ($controller, $authService): void {
-    requireAuth($authService);
+    $userData = requireAuth($authService);
+    $controller->setUserId($userData['user_id']);
     $controller->exportarTareas();
 });
 
 $router->get('/tasks', function () use ($controller, $authService): void {
-    requireAuth($authService);
+    $userData = requireAuth($authService);
+    $controller->setUserId($userData['user_id']);
     $controller->listarTareas();
 });
 
 $router->get('/tasks/{id}', function (array $params) use ($controller, $authService): void {
-    requireAuth($authService);
+    $userData = requireAuth($authService);
+    $controller->setUserId($userData['user_id']);
     $controller->obtenerTarea($params);
 });
 
 $router->post('/tasks', function () use ($controller, $authService): void {
-    requireAuth($authService);
+    $userData = requireAuth($authService);
+    $controller->setUserId($userData['user_id']);
     $body = obtenerBodyJson();
     $controller->crearTarea($body);
 });
 
+$router->put('/tasks/{id}', function (array $params) use ($controller, $authService): void {
+    $userData = requireAuth($authService);
+    $controller->setUserId($userData['user_id']);
+    $body = obtenerBodyJson();
+    $controller->actualizarTarea($params, $body);
+});
+
 $router->patch('/tasks/{id}/complete', function (array $params) use ($controller, $authService): void {
-    requireAuth($authService);
+    $userData = requireAuth($authService);
+    $controller->setUserId($userData['user_id']);
     $controller->completarTarea($params);
 });
 
 $router->delete('/tasks/{id}', function (array $params) use ($controller, $authService): void {
-    requireAuth($authService);
+    $userData = requireAuth($authService);
+    $controller->setUserId($userData['user_id']);
     $controller->eliminarTarea($params);
 });
 

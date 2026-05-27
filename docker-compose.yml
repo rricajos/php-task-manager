@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - task-data:/app/data
+    environment:
+      - JWT_SECRET=${JWT_SECRET:-super_secret_key_change_me}
+      - JWT_TTL=${JWT_TTL:-86400}
+      - DB_PATH=/app/data/tasks.db
+    restart: unless-stopped
+
+  cli:
+    build: .
+    volumes:
+      - task-data:/app/data
+    environment:
+      - DB_PATH=/app/data/tasks.db
+    entrypoint: ["php", "app.php"]
+    stdin_open: true
+    tty: true
+    profiles:
+      - cli
+
+volumes:
+  task-data:

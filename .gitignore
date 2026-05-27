@@ -4,3 +4,6 @@
 /data/export_*
 composer.lock
 coverage.xml
+.env
+.phpstan-cache/
+.php-cs-fixer.cache

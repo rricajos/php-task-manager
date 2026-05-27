@@ -8,6 +8,14 @@ info:
     ## Autenticación
     Todas las rutas `/tasks` requieren un token JWT en el header `Authorization: Bearer <token>`.
     Obtén un token registrándote y haciendo login en `/auth`.
+
+    ## Aislamiento de datos
+    Cada usuario solo puede ver y gestionar sus propias tareas. El `user_id` se extrae
+    automáticamente del token JWT en cada petición autenticada.
+
+    ## Paginación
+    Los endpoints que retornan listas soportan paginación con los parámetros `page` y `per_page`.
+    La respuesta incluye un objeto `pagination` con metadatos: `total`, `page`, `per_page`, `total_pages`.
   version: 1.0.0
   license:
     name: MIT
@@ -22,9 +30,9 @@ servers:
 
 tags:
   - name: Auth
-    description: Registro y autenticación de usuarios
+    description: Registro, autenticación de usuarios y perfil
   - name: Tasks
-    description: Operaciones CRUD sobre tareas
+    description: Operaciones CRUD sobre tareas con paginación y filtros
   - name: Export
     description: Exportación y estadísticas
 
@@ -32,7 +40,12 @@ paths:
   /auth/register:
     post:
       tags: [Auth]
+      operationId: registerUser
       summary: Registrar un nuevo usuario
+      description: |
+        Crea una nueva cuenta de usuario. El nombre de usuario debe ser único,
+        alfanumérico (con guiones bajos), entre 3 y 50 caracteres.
+        La contraseña debe tener al menos 6 caracteres.
       requestBody:
         required: true
         content:
@@ -53,20 +66,29 @@ paths:
                   example: secret123
       responses:
         '201':
-          description: Usuario registrado
+          description: Usuario registrado exitosamente
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthRegisterResponse'
+        '409':
+          description: El nombre de usuario ya existe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '422':
           $ref: '#/components/responses/ValidationError'
-        '409':
-          description: El usuario ya existe
 
   /auth/login:
     post:
       tags: [Auth]
+      operationId: loginUser
       summary: Iniciar sesión y obtener token JWT
+      description: |
+        Autentica un usuario con sus credenciales y retorna un token JWT
+        firmado con HMAC-SHA256. El token tiene una duración de 24 horas
+        por defecto (configurable via JWT_TTL).
       requestBody:
         required: true
         content:
@@ -90,11 +112,44 @@ paths:
                 $ref: '#/components/schemas/AuthLoginResponse'
         '401':
           description: Credenciales inválidas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      operationId: getUserProfile
+      summary: Obtener perfil del usuario autenticado
+      description: |
+        Retorna los datos del perfil del usuario autenticado.
+        El user_id se extrae del token JWT.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Perfil obtenido exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /tasks:
     get:
       tags: [Tasks]
-      summary: Listar tareas
+      operationId: listTasks
+      summary: Listar tareas con paginación, ordenamiento y filtros
+      description: |
+        Retorna las tareas del usuario autenticado con soporte para
+        paginación, ordenamiento por cualquier campo y filtros por
+        estado y prioridad. Solo retorna tareas del user_id del token JWT.
       security:
         - BearerAuth: []
       parameters:
@@ -104,19 +159,69 @@ paths:
           schema:
             type: string
             enum: [pendiente, completada, todas]
-          description: Filtrar por estado
+            default: todas
+          description: Filtrar por estado de la tarea
+        - name: priority
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [alta, media, baja]
+          description: Filtrar por prioridad de la tarea
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Número de página
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Resultados por página (máximo 100)
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [fecha_creacion, titulo, prioridad, estado, fecha_vencimiento]
+            default: fecha_creacion
+          description: Campo por el cual ordenar
+        - name: order
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+          description: Dirección de ordenamiento
       responses:
         '200':
-          description: Lista de tareas
+          description: Lista paginada de tareas
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskListResponse'
+                $ref: '#/components/schemas/TaskPaginatedResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
     post:
       tags: [Tasks]
+      operationId: createTask
       summary: Crear una nueva tarea
+      description: |
+        Crea una nueva tarea asociada al usuario autenticado.
+        El título es obligatorio (máximo 100 caracteres). La prioridad
+        por defecto es 'media'. La fecha de vencimiento es opcional
+        y debe tener formato YYYY-MM-DD.
       security:
         - BearerAuth: []
       requestBody:
@@ -130,18 +235,26 @@ paths:
                 title:
                   type: string
                   maxLength: 100
+                  description: Título de la tarea (obligatorio)
                   example: Estudiar PHP 8
                 description:
                   type: string
+                  description: Descripción detallada de la tarea
                   example: Repasar enums y match
                 priority:
                   type: string
                   enum: [alta, media, baja]
                   default: media
+                  description: Nivel de prioridad
                   example: alta
+                due_date:
+                  type: string
+                  format: date
+                  description: Fecha de vencimiento en formato YYYY-MM-DD
+                  example: '2026-12-31'
       responses:
         '201':
-          description: Tarea creada
+          description: Tarea creada exitosamente
           content:
             application/json:
               schema:
@@ -154,7 +267,11 @@ paths:
   /tasks/{id}:
     get:
       tags: [Tasks]
+      operationId: getTask
       summary: Obtener una tarea por ID
+      description: |
+        Retorna los detalles de una tarea específica. Solo se puede
+        acceder a tareas del usuario autenticado.
       security:
         - BearerAuth: []
       parameters:
@@ -170,32 +287,101 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
-    delete:
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+    put:
       tags: [Tasks]
-      summary: Eliminar una tarea
+      operationId: updateTask
+      summary: Actualizar una tarea existente
+      description: |
+        Actualiza los campos especificados de una tarea existente.
+        Solo se actualizan los campos incluidos en el body; los campos
+        omitidos mantienen su valor actual. Para eliminar la fecha de
+        vencimiento, enviar due_date como cadena vacía.
       security:
         - BearerAuth: []
       parameters:
         - $ref: '#/components/parameters/TaskId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  maxLength: 100
+                  description: Nuevo título
+                  example: Estudiar PHP 8.3
+                description:
+                  type: string
+                  description: Nueva descripción
+                  example: Repasar readonly properties y fibers
+                priority:
+                  type: string
+                  enum: [alta, media, baja]
+                  description: Nueva prioridad
+                  example: media
+                due_date:
+                  type: string
+                  format: date
+                  description: Nueva fecha de vencimiento (YYYY-MM-DD, cadena vacía para eliminar)
+                  example: '2026-12-31'
       responses:
         '200':
-          description: Tarea eliminada
+          description: Tarea actualizada exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
 
-  /tasks/{id}/complete:
-    patch:
+    delete:
       tags: [Tasks]
-      summary: Marcar tarea como completada
+      operationId: deleteTask
+      summary: Eliminar una tarea permanentemente
+      description: |
+        Elimina una tarea de forma permanente. Esta acción no se puede deshacer.
       security:
         - BearerAuth: []
       parameters:
         - $ref: '#/components/parameters/TaskId'
       responses:
         '200':
-          description: Tarea completada
+          description: Tarea eliminada exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /tasks/{id}/complete:
+    patch:
+      tags: [Tasks]
+      operationId: completeTask
+      summary: Marcar tarea como completada
+      description: |
+        Marca una tarea pendiente como completada y registra la fecha de
+        completado. Si la tarea ya está completada, retorna error 422.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+      responses:
+        '200':
+          description: Tarea marcada como completada
           content:
             application/json:
               schema:
@@ -206,11 +392,19 @@ paths:
           $ref: '#/components/responses/NotFound'
         '422':
           description: La tarea ya está completada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /tasks/search:
     get:
       tags: [Tasks]
-      summary: Buscar tareas por palabra clave
+      operationId: searchTasks
+      summary: Buscar tareas por palabra clave con paginación
+      description: |
+        Busca tareas cuyo título o descripción contengan la palabra clave.
+        Soporta paginación. Solo busca en las tareas del usuario autenticado.
       security:
         - BearerAuth: []
       parameters:
@@ -222,13 +416,30 @@ paths:
             minLength: 1
           description: Palabra clave a buscar en título y descripción
           example: PHP
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Número de página
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Resultados por página (máximo 100)
       responses:
         '200':
-          description: Resultados de búsqueda
+          description: Resultados de búsqueda paginados
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskListResponse'
+                $ref: '#/components/schemas/TaskPaginatedResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '422':
@@ -236,13 +447,18 @@ paths:
 
   /tasks/stats:
     get:
-      tags: [Tasks]
+      tags: [Export]
+      operationId: getTaskStats
       summary: Obtener estadísticas de tareas
+      description: |
+        Retorna estadísticas de las tareas del usuario autenticado:
+        totales, desglose por estado, desglose por prioridad y
+        porcentaje de completado.
       security:
         - BearerAuth: []
       responses:
         '200':
-          description: Estadísticas
+          description: Estadísticas obtenidas exitosamente
           content:
             application/json:
               schema:
@@ -253,7 +469,19 @@ paths:
   /tasks/export:
     get:
       tags: [Export]
-      summary: Exportar tareas a archivo
+      operationId: exportTasks
+      summary: Exportar tareas como descarga directa
+      description: |
+        Exporta todas las tareas del usuario autenticado en el formato
+        especificado. El contenido se envía directamente como descarga
+        (streaming), no como referencia a un archivo.
+
+        - **JSON**: Content-Type `application/json` con estructura que incluye
+          metadatos de exportación y lista de tareas.
+        - **CSV**: Content-Type `text/csv` con BOM UTF-8 para compatibilidad
+          con Excel, encabezados de columna y una fila por tarea.
+
+        Ambos formatos incluyen header `Content-Disposition: attachment`.
       security:
         - BearerAuth: []
       parameters:
@@ -267,25 +495,33 @@ paths:
           description: Formato de exportación
       responses:
         '200':
-          description: Exportación exitosa
+          description: Contenido exportado como descarga directa
           content:
             application/json:
+              description: Exportación en formato JSON
               schema:
                 type: object
                 properties:
-                  success:
-                    type: boolean
-                  data:
-                    type: object
-                    properties:
-                      format:
-                        type: string
-                      file:
-                        type: string
-                      tasks_exported:
-                        type: integer
+                  exportado_en:
+                    type: string
+                    format: date-time
+                    description: Fecha y hora de exportación
+                  total_tareas:
+                    type: integer
+                    description: Número total de tareas exportadas
+                  tareas:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Task'
+            text/csv:
+              description: Exportación en formato CSV
+              schema:
+                type: string
+                description: Contenido CSV con BOM UTF-8 y encabezados
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
 
 components:
   securitySchemes:
@@ -293,6 +529,9 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+      description: |
+        Token JWT obtenido del endpoint /auth/login.
+        Formato del header: `Authorization: Bearer <token>`
 
   parameters:
     TaskId:
@@ -302,132 +541,267 @@ components:
       schema:
         type: integer
         minimum: 1
-      description: ID de la tarea
+      description: ID único de la tarea (entero positivo)
 
   schemas:
     Task:
       type: object
+      description: Representación completa de una tarea
       properties:
         id:
           type: integer
+          description: Identificador único
           example: 1
         titulo:
           type: string
+          description: Título de la tarea
           example: Estudiar PHP 8
         descripcion:
           type: string
+          description: Descripción detallada
           example: Repasar enums y match
         prioridad:
           type: string
           enum: [alta, media, baja]
+          description: Nivel de prioridad
+          example: alta
         estado:
           type: string
           enum: [pendiente, completada]
+          description: Estado actual
+          example: pendiente
         fecha_creacion:
           type: string
           format: date-time
+          description: Fecha y hora de creación
+          example: '2026-05-27 10:30:00'
         fecha_completada:
           type: string
           format: date-time
           nullable: true
+          description: Fecha y hora de completado (null si pendiente)
+          example: null
+        fecha_vencimiento:
+          type: string
+          format: date
+          nullable: true
+          description: Fecha límite en formato YYYY-MM-DD (null si no tiene)
+          example: '2026-12-31'
+
+    Pagination:
+      type: object
+      description: Metadatos de paginación
+      properties:
+        total:
+          type: integer
+          description: Número total de registros que coinciden con los filtros
+          example: 45
+        page:
+          type: integer
+          description: Página actual
+          example: 1
+        per_page:
+          type: integer
+          description: Registros por página
+          example: 20
+        total_pages:
+          type: integer
+          description: Número total de páginas
+          example: 3
+
+    SuccessResponse:
+      type: object
+      description: Respuesta exitosa genérica
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Operación exitosa
+        data:
+          nullable: true
 
     TaskResponse:
       type: object
+      description: Respuesta exitosa con una tarea
       properties:
         success:
           type: boolean
+          example: true
+        message:
+          type: string
+          example: Tarea obtenida exitosamente
         data:
           $ref: '#/components/schemas/Task'
 
-    TaskListResponse:
+    TaskPaginatedResponse:
       type: object
+      description: Respuesta paginada con lista de tareas
       properties:
         success:
           type: boolean
+          example: true
+        message:
+          type: string
+          example: Tareas obtenidas exitosamente
         data:
           type: array
           items:
             $ref: '#/components/schemas/Task'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
 
     StatsResponse:
       type: object
+      description: Respuesta con estadísticas de tareas
       properties:
         success:
           type: boolean
+          example: true
+        message:
+          type: string
+          example: Estadisticas obtenidas exitosamente
         data:
           type: object
           properties:
             total:
               type: integer
+              description: Número total de tareas
+              example: 10
             completadas:
               type: integer
+              description: Tareas completadas
+              example: 4
             pendientes:
               type: integer
+              description: Tareas pendientes
+              example: 6
             por_prioridad:
               type: object
+              description: Desglose por nivel de prioridad
               properties:
                 alta:
                   type: integer
+                  example: 3
                 media:
                   type: integer
+                  example: 5
                 baja:
                   type: integer
+                  example: 2
+            porcentaje_completado:
+              type: number
+              format: float
+              description: Porcentaje de tareas completadas
+              example: 40.0
 
-    AuthRegisterResponse:
+    UserProfileResponse:
       type: object
+      description: Respuesta con datos del perfil de usuario
       properties:
         success:
           type: boolean
+          example: true
         message:
           type: string
+          example: Perfil obtenido exitosamente
         data:
           type: object
           properties:
             id:
               type: integer
+              example: 1
             username:
               type: string
+              example: admin
             created_at:
               type: string
+              format: date-time
+              example: '2026-05-27 10:00:00'
 
-    AuthLoginResponse:
+    AuthRegisterResponse:
       type: object
+      description: Respuesta de registro exitoso
       properties:
         success:
           type: boolean
+          example: true
         message:
           type: string
+          example: Usuario registrado exitosamente
+        data:
+          type: object
+          properties:
+            id:
+              type: integer
+              example: 1
+            username:
+              type: string
+              example: admin
+            created_at:
+              type: string
+              format: date-time
+              example: '2026-05-27 10:00:00'
+
+    AuthLoginResponse:
+      type: object
+      description: Respuesta de login exitoso con token JWT
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Login exitoso
         data:
           type: object
           properties:
             token:
               type: string
+              description: Token JWT firmado con HMAC-SHA256
+              example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
             type:
               type: string
+              description: Tipo de token (siempre Bearer)
               example: Bearer
             expires_in:
               type: integer
+              description: Duración del token en segundos
               example: 86400
             user:
               type: object
               properties:
                 id:
                   type: integer
+                  example: 1
                 username:
                   type: string
+                  example: admin
 
     Error:
       type: object
+      description: Respuesta de error
       properties:
         success:
           type: boolean
           example: false
-        error:
+        message:
           type: string
+          description: Mensaje descriptivo del error
+          example: Recurso no encontrado
+        errors:
+          type: object
+          nullable: true
+          description: Detalles adicionales del error (opcional)
+          properties:
+            campo:
+              type: string
+              description: Campo que causó el error de validación
 
   responses:
     Unauthorized:
-      description: Token JWT faltante o inválido
+      description: Token JWT faltante, inválido o expirado
       content:
         application/json:
           schema:
@@ -439,7 +813,7 @@ components:
           schema:
             $ref: '#/components/schemas/Error'
     ValidationError:
-      description: Error de validación
+      description: Error de validación en los datos de entrada
       content:
         application/json:
           schema:

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use MiniProject\Database;
+use MiniProject\NotFoundException;
 use MiniProject\Priority;
 use MiniProject\Status;
 use MiniProject\Task;
@@ -34,8 +35,12 @@ class TaskServiceTest extends TestCase
         Database::resetInstance();
         Database::getInstance(':memory:');
 
-        $this->repository = new TaskRepository();
-        $this->service = new TaskService($this->repository);
+        // Insertar un usuario de prueba para que el FK sea valido
+        $pdo = Database::getInstance()->getConnection();
+        $pdo->exec("INSERT INTO users (username, password_hash) VALUES ('testuser', 'hash')");
+
+        $this->repository = new TaskRepository(userId: 1);
+        $this->service = new TaskService(repository: $this->repository);
     }
 
     protected function tearDown(): void
@@ -405,5 +410,347 @@ class TaskServiceTest extends TestCase
         $this->assertSame(0, $stats['por_prioridad']['alta']);
         $this->assertSame(0, $stats['por_prioridad']['media']);
         $this->assertSame(0, $stats['por_prioridad']['baja']);
+    }
+
+    // ---------------------------------------------------------------
+    //  Tests de obtenerTarea()
+    // ---------------------------------------------------------------
+
+    public function testObtenerTareaPorId(): void
+    {
+        $creada = $this->service->crearTarea(
+            titulo: 'Tarea para obtener',
+            descripcion: 'Descripcion de prueba',
+            prioridad: 'alta',
+        );
+
+        $obtenida = $this->service->obtenerTarea($creada->id);
+
+        $this->assertSame($creada->id, $obtenida->id);
+        $this->assertSame('Tarea para obtener', $obtenida->titulo);
+        $this->assertSame('Descripcion de prueba', $obtenida->descripcion);
+        $this->assertSame(Priority::Alta, $obtenida->prioridad);
+    }
+
+    public function testObtenerTareaPorIdString(): void
+    {
+        $creada = $this->service->crearTarea('Tarea string id', '', 'media');
+
+        $obtenida = $this->service->obtenerTarea((string) $creada->id);
+
+        $this->assertSame($creada->id, $obtenida->id);
+    }
+
+    public function testObtenerTareaInexistenteLanzaExcepcion(): void
+    {
+        $this->expectException(NotFoundException::class);
+
+        $this->service->obtenerTarea(999);
+    }
+
+    public function testObtenerTareaConIdInvalidoLanzaExcepcion(): void
+    {
+        $this->expectException(ValidationException::class);
+
+        $this->service->obtenerTarea('abc');
+    }
+
+    public function testObtenerTareaConIdCeroLanzaExcepcion(): void
+    {
+        $this->expectException(ValidationException::class);
+
+        $this->service->obtenerTarea(0);
+    }
+
+    // ---------------------------------------------------------------
+    //  Tests de actualizarTarea()
+    // ---------------------------------------------------------------
+
+    public function testActualizarTareaTitulo(): void
+    {
+        $creada = $this->service->crearTarea('Titulo original', 'Desc', 'alta');
+
+        $actualizada = $this->service->actualizarTarea(
+            id: $creada->id,
+            titulo: 'Titulo modificado',
+        );
+
+        $this->assertSame('Titulo modificado', $actualizada->titulo);
+        // Las demas propiedades no cambian
+        $this->assertSame('Desc', $actualizada->descripcion);
+        $this->assertSame(Priority::Alta, $actualizada->prioridad);
+    }
+
+    public function testActualizarTareaDescripcion(): void
+    {
+        $creada = $this->service->crearTarea('Titulo', 'Desc original', 'media');
+
+        $actualizada = $this->service->actualizarTarea(
+            id: $creada->id,
+            descripcion: 'Desc modificada',
+        );
+
+        $this->assertSame('Desc modificada', $actualizada->descripcion);
+        $this->assertSame('Titulo', $actualizada->titulo);
+    }
+
+    public function testActualizarTareaPrioridad(): void
+    {
+        $creada = $this->service->crearTarea('Titulo', '', 'alta');
+
+        $actualizada = $this->service->actualizarTarea(
+            id: $creada->id,
+            prioridad: 'baja',
+        );
+
+        $this->assertSame(Priority::Baja, $actualizada->prioridad);
+    }
+
+    public function testActualizarTareaSinCambiosRetornaTareaOriginal(): void
+    {
+        $creada = $this->service->crearTarea('Titulo', 'Desc', 'alta');
+
+        $sinCambios = $this->service->actualizarTarea(id: $creada->id);
+
+        $this->assertSame($creada->id, $sinCambios->id);
+        $this->assertSame('Titulo', $sinCambios->titulo);
+    }
+
+    public function testActualizarTareaConTituloVacioLanzaExcepcion(): void
+    {
+        $creada = $this->service->crearTarea('Titulo valido', '', 'alta');
+
+        $this->expectException(ValidationException::class);
+
+        $this->service->actualizarTarea(
+            id: $creada->id,
+            titulo: '',
+        );
+    }
+
+    public function testActualizarTareaConPrioridadInvalidaLanzaExcepcion(): void
+    {
+        $creada = $this->service->crearTarea('Titulo', '', 'alta');
+
+        $this->expectException(ValidationException::class);
+
+        $this->service->actualizarTarea(
+            id: $creada->id,
+            prioridad: 'urgente',
+        );
+    }
+
+    public function testActualizarTareaInexistenteLanzaExcepcion(): void
+    {
+        $this->expectException(NotFoundException::class);
+
+        $this->service->actualizarTarea(
+            id: 999,
+            titulo: 'Nuevo titulo',
+        );
+    }
+
+    // ---------------------------------------------------------------
+    //  Tests de crearTarea con fechaVencimiento
+    // ---------------------------------------------------------------
+
+    public function testCrearTareaConFechaVencimiento(): void
+    {
+        $task = $this->service->crearTarea(
+            titulo: 'Tarea con vencimiento',
+            descripcion: 'Debe completarse pronto',
+            prioridad: 'alta',
+            fechaVencimiento: '2026-12-31',
+        );
+
+        $this->assertSame('2026-12-31', $task->fechaVencimiento);
+    }
+
+    public function testCrearTareaSinFechaVencimiento(): void
+    {
+        $task = $this->service->crearTarea(
+            titulo: 'Tarea sin fecha',
+            descripcion: '',
+            prioridad: 'media',
+        );
+
+        $this->assertNull($task->fechaVencimiento);
+    }
+
+    public function testCrearTareaConFechaVencimientoFormatoInvalido(): void
+    {
+        $this->expectException(ValidationException::class);
+
+        $this->service->crearTarea(
+            titulo: 'Tarea con fecha invalida',
+            descripcion: '',
+            prioridad: 'alta',
+            fechaVencimiento: '31/12/2026',
+        );
+    }
+
+    public function testCrearTareaConFechaVencimientoVaciaEsNull(): void
+    {
+        $task = $this->service->crearTarea(
+            titulo: 'Tarea fecha vacia',
+            descripcion: '',
+            prioridad: 'media',
+            fechaVencimiento: '',
+        );
+
+        $this->assertNull($task->fechaVencimiento);
+    }
+
+    // ---------------------------------------------------------------
+    //  Tests de actualizarTarea con fechaVencimiento
+    // ---------------------------------------------------------------
+
+    public function testActualizarTareaConFechaVencimiento(): void
+    {
+        $creada = $this->service->crearTarea('Titulo', '', 'alta');
+
+        $actualizada = $this->service->actualizarTarea(
+            id: $creada->id,
+            fechaVencimiento: '2026-12-25',
+        );
+
+        $this->assertSame('2026-12-25', $actualizada->fechaVencimiento);
+    }
+
+    public function testActualizarTareaEliminarFechaVencimiento(): void
+    {
+        $creada = $this->service->crearTarea(
+            titulo: 'Titulo',
+            descripcion: '',
+            prioridad: 'alta',
+            fechaVencimiento: '2026-12-25',
+        );
+
+        // Sending empty string should clear the due date
+        $actualizada = $this->service->actualizarTarea(
+            id: $creada->id,
+            fechaVencimiento: '',
+        );
+
+        $this->assertNull($actualizada->fechaVencimiento);
+    }
+
+    public function testActualizarTareaConFechaVencimientoInvalida(): void
+    {
+        $creada = $this->service->crearTarea('Titulo', '', 'alta');
+
+        $this->expectException(ValidationException::class);
+
+        $this->service->actualizarTarea(
+            id: $creada->id,
+            fechaVencimiento: 'no-es-fecha',
+        );
+    }
+
+    // ---------------------------------------------------------------
+    //  Tests de listarTareas con paginacion
+    // ---------------------------------------------------------------
+
+    public function testListarTareasPaginadoRetornaMetadatos(): void
+    {
+        for ($i = 1; $i <= 5; $i++) {
+            $this->service->crearTarea("Tarea {$i}", '', 'media');
+        }
+
+        $resultado = $this->service->listarTareas(
+            filtro: 'todas',
+            page: 1,
+            perPage: 2,
+        );
+
+        $this->assertArrayHasKey('tareas', $resultado);
+        $this->assertArrayHasKey('total', $resultado);
+        $this->assertArrayHasKey('page', $resultado);
+        $this->assertArrayHasKey('per_page', $resultado);
+        $this->assertArrayHasKey('total_pages', $resultado);
+
+        $this->assertSame(5, $resultado['total']);
+        $this->assertSame(1, $resultado['page']);
+        $this->assertSame(2, $resultado['per_page']);
+        $this->assertSame(3, $resultado['total_pages']);
+        $this->assertCount(2, $resultado['tareas']);
+    }
+
+    public function testListarTareasSinPaginacion(): void
+    {
+        $this->service->crearTarea('Tarea 1', '', 'alta');
+        $this->service->crearTarea('Tarea 2', '', 'media');
+
+        // page=0 returns simple array (backward compat)
+        $resultado = $this->service->listarTareas(filtro: 'todas', page: 0);
+
+        $this->assertIsArray($resultado);
+        // Simple array, not paginated structure
+        $this->assertArrayNotHasKey('tareas', $resultado);
+        $this->assertCount(2, $resultado);
+    }
+
+    // ---------------------------------------------------------------
+    //  Tests de buscarTareas con paginacion
+    // ---------------------------------------------------------------
+
+    public function testBuscarTareasPaginado(): void
+    {
+        for ($i = 1; $i <= 5; $i++) {
+            $this->service->crearTarea("PHP tarea {$i}", '', 'media');
+        }
+
+        $resultado = $this->service->buscarTareas(
+            keyword: 'PHP',
+            page: 1,
+            perPage: 2,
+        );
+
+        $this->assertArrayHasKey('tareas', $resultado);
+        $this->assertArrayHasKey('total', $resultado);
+        $this->assertSame(5, $resultado['total']);
+        $this->assertCount(2, $resultado['tareas']);
+    }
+
+    // ---------------------------------------------------------------
+    //  Tests de formatearEstadisticas
+    // ---------------------------------------------------------------
+
+    public function testFormatearEstadisticasConDatos(): void
+    {
+        $stats = [
+            'total' => 10,
+            'completadas' => 5,
+            'pendientes' => 5,
+            'por_prioridad' => [
+                'alta' => 3,
+                'media' => 4,
+                'baja' => 3,
+            ],
+        ];
+
+        $texto = $this->service->formatearEstadisticas($stats);
+
+        $this->assertStringContainsString('ESTADISTICAS', $texto);
+        $this->assertStringContainsString('10', $texto);
+        $this->assertStringContainsString('50', $texto); // 50% porcentaje
+    }
+
+    public function testFormatearEstadisticasSinTareas(): void
+    {
+        $stats = [
+            'total' => 0,
+            'completadas' => 0,
+            'pendientes' => 0,
+            'por_prioridad' => [
+                'alta' => 0,
+                'media' => 0,
+                'baja' => 0,
+            ],
+        ];
+
+        $texto = $this->service->formatearEstadisticas($stats);
+
+        $this->assertStringContainsString('ESTADISTICAS', $texto);
     }
 }

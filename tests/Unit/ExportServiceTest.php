@@ -296,6 +296,11 @@ class ExportServiceTest extends TestCase
                 return '/tmp/custom_export.txt';
             }
 
+            public function exportToString(array $tasks): string
+            {
+                return 'custom export string';
+            }
+
             public function getFormatName(): string
             {
                 return 'Custom';
@@ -379,5 +384,148 @@ class ExportServiceTest extends TestCase
 
         $this->assertIsArray($formatos);
         $this->assertCount(2, $formatos);
+    }
+
+    // ---------------------------------------------------------------
+    //  Tests de exportToString (JsonExporter)
+    // ---------------------------------------------------------------
+
+    public function testJsonExporterExportToStringRetornaJsonValido(): void
+    {
+        $exporter = new JsonExporter(outputDir: $this->tempDir);
+
+        $contenido = $exporter->exportToString($this->tareasEjemplo);
+
+        $data = json_decode($contenido, true);
+        $this->assertNotNull($data, 'El string JSON debe ser valido');
+        $this->assertArrayHasKey('exportado_en', $data);
+        $this->assertArrayHasKey('total_tareas', $data);
+        $this->assertArrayHasKey('tareas', $data);
+        $this->assertSame(3, $data['total_tareas']);
+        $this->assertCount(3, $data['tareas']);
+    }
+
+    public function testJsonExporterExportToStringConListaVacia(): void
+    {
+        $exporter = new JsonExporter(outputDir: $this->tempDir);
+
+        $contenido = $exporter->exportToString([]);
+
+        $data = json_decode($contenido, true);
+        $this->assertSame(0, $data['total_tareas']);
+        $this->assertCount(0, $data['tareas']);
+    }
+
+    public function testJsonExporterExportToStringNoCreArchivo(): void
+    {
+        $subDir = $this->tempDir . '/no_debe_existir';
+        $exporter = new JsonExporter(outputDir: $subDir);
+
+        $exporter->exportToString($this->tareasEjemplo);
+
+        // exportToString should not create the directory
+        $this->assertDirectoryDoesNotExist($subDir);
+    }
+
+    // ---------------------------------------------------------------
+    //  Tests de exportToString (CsvExporter)
+    // ---------------------------------------------------------------
+
+    public function testCsvExporterExportToStringContieneEncabezados(): void
+    {
+        $exporter = new CsvExporter(outputDir: $this->tempDir);
+
+        $contenido = $exporter->exportToString($this->tareasEjemplo);
+
+        // Remove BOM if present
+        $contenidoSinBom = ltrim($contenido, "\xEF\xBB\xBF");
+
+        $this->assertStringContainsString('ID', $contenidoSinBom);
+        $this->assertStringContainsString('Titulo', $contenidoSinBom);
+        $this->assertStringContainsString('Descripcion', $contenidoSinBom);
+        $this->assertStringContainsString('Prioridad', $contenidoSinBom);
+        $this->assertStringContainsString('Estado', $contenidoSinBom);
+    }
+
+    public function testCsvExporterExportToStringContieneFilasDeDatos(): void
+    {
+        $exporter = new CsvExporter(outputDir: $this->tempDir);
+
+        $contenido = $exporter->exportToString($this->tareasEjemplo);
+        $contenidoSinBom = ltrim($contenido, "\xEF\xBB\xBF");
+        $lineas = explode("\n", trim($contenidoSinBom));
+
+        // 1 header + 3 data rows
+        $this->assertCount(4, $lineas);
+
+        // Verify first data row contains task data
+        $this->assertStringContainsString('Comprar leche', $contenidoSinBom);
+    }
+
+    public function testCsvExporterExportToStringConListaVacia(): void
+    {
+        $exporter = new CsvExporter(outputDir: $this->tempDir);
+
+        $contenido = $exporter->exportToString([]);
+        $contenidoSinBom = ltrim($contenido, "\xEF\xBB\xBF");
+        $lineas = explode("\n", trim($contenidoSinBom));
+
+        // Only headers
+        $this->assertCount(1, $lineas);
+    }
+
+    public function testCsvExporterExportToStringIncluyeBom(): void
+    {
+        $exporter = new CsvExporter(outputDir: $this->tempDir);
+
+        $contenido = $exporter->exportToString($this->tareasEjemplo);
+
+        $this->assertSame("\xEF\xBB\xBF", substr($contenido, 0, 3));
+    }
+
+    // ---------------------------------------------------------------
+    //  Tests de ExportService::exportarComoString
+    // ---------------------------------------------------------------
+
+    public function testExportServiceExportarComoStringJson(): void
+    {
+        $service = new ExportService(outputDir: $this->tempDir);
+
+        $contenido = $service->exportarComoString($this->tareasEjemplo, 'json');
+
+        $data = json_decode($contenido, true);
+        $this->assertNotNull($data);
+        $this->assertSame(3, $data['total_tareas']);
+    }
+
+    public function testExportServiceExportarComoStringCsv(): void
+    {
+        $service = new ExportService(outputDir: $this->tempDir);
+
+        $contenido = $service->exportarComoString($this->tareasEjemplo, 'csv');
+
+        $contenidoSinBom = ltrim($contenido, "\xEF\xBB\xBF");
+        $this->assertStringContainsString('ID', $contenidoSinBom);
+        $this->assertStringContainsString('Comprar leche', $contenidoSinBom);
+    }
+
+    public function testExportServiceExportarComoStringFormatoInvalido(): void
+    {
+        $service = new ExportService(outputDir: $this->tempDir);
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('no disponible');
+
+        $service->exportarComoString($this->tareasEjemplo, 'xml');
+    }
+
+    public function testExportServiceExportarComoStringCaseInsensitive(): void
+    {
+        $service = new ExportService(outputDir: $this->tempDir);
+
+        $contenido = $service->exportarComoString($this->tareasEjemplo, 'JSON');
+
+        $data = json_decode($contenido, true);
+        $this->assertNotNull($data);
     }
 }
