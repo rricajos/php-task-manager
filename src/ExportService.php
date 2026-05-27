@@ -371,6 +371,7 @@ class ExportService
 
         if (!isset($this->exporters[$formato])) {
             $disponibles = implode(', ', array_keys($this->exporters));
+
             throw new ValidationException(
                 message: "Formato de exportacion '{$formato}' no disponible. Formatos disponibles: {$disponibles}",
                 code: ValidationException::ERROR_CAMPO_VACIO,
@@ -399,6 +400,7 @@ class ExportService
 
         if (!isset($this->exporters[$formato])) {
             $disponibles = implode(', ', array_keys($this->exporters));
+
             throw new ValidationException(
                 message: "Formato de exportacion '{$formato}' no disponible. Formatos disponibles: {$disponibles}",
                 code: ValidationException::ERROR_CAMPO_VACIO,

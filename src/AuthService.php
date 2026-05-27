@@ -48,6 +48,7 @@ class AuthService
                 code: AppException::ERROR_GENERAL,
             );
         }
+
         return $secret;
     }
 
@@ -59,6 +60,7 @@ class AuthService
     private static function getJwtTtl(): int
     {
         $ttl = getenv('JWT_TTL');
+
         return ($ttl !== false && $ttl !== '') ? (int) $ttl : self::JWT_TTL_DEFAULT;
     }
 
@@ -164,7 +166,7 @@ class AuthService
      *
      * @param string $username Nombre de usuario
      * @param string $password Contrasena en texto plano
-     * @return array{token: string, type: string, expires_in: int, user: array} Token y datos del usuario
+     * @return array{token: string, type: string, expires_in: int, user: array{id: int, username: string}} Token y datos del usuario
      * @throws ValidationException Si los campos estan vacios
      * @throws AppException Si las credenciales son invalidas
      */

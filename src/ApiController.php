@@ -457,8 +457,8 @@ class ApiController
             $stats = $this->getTaskService()->obtenerEstadisticas();
 
             // Calcular porcentaje de completado
-            $porcentaje = $stats['total'] > 0
-                ? round(($stats['completadas'] / $stats['total']) * 100, 1)
+            $porcentaje = (int) $stats['total'] > 0
+                ? round(((int) $stats['completadas'] / (int) $stats['total']) * 100, 1)
                 : 0.0;
 
             $stats['porcentaje_completado'] = $porcentaje;

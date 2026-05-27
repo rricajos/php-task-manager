@@ -37,7 +37,7 @@ class TaskServiceTest extends TestCase
 
         // Insertar un usuario de prueba para que el FK sea valido
         $pdo = Database::getInstance()->getConnection();
-        $pdo->exec("INSERT INTO users (username, password_hash) VALUES ('testuser', 'hash')");
+        $pdo->exec('INSERT INTO users (username, password_hash) VALUES (\'testuser\', \'hash\')');
 
         $this->repository = new TaskRepository(userId: 1);
         $this->service = new TaskService(repository: $this->repository);

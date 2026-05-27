@@ -80,12 +80,12 @@ class DatabaseTest extends TestCase
         $pdo = $db->getConnection();
 
         // Check that users table exists
-        $stmtUsers = $pdo->query("PRAGMA table_info(users)");
+        $stmtUsers = $pdo->query('PRAGMA table_info(users)');
         $usersColumns = $stmtUsers->fetchAll();
         $this->assertNotEmpty($usersColumns, 'La tabla users debe existir');
 
         // Check that tasks table exists
-        $stmtTasks = $pdo->query("PRAGMA table_info(tasks)");
+        $stmtTasks = $pdo->query('PRAGMA table_info(tasks)');
         $tasksColumns = $stmtTasks->fetchAll();
         $this->assertNotEmpty($tasksColumns, 'La tabla tasks debe existir');
     }
@@ -96,7 +96,7 @@ class DatabaseTest extends TestCase
         $db = Database::getInstance(':memory:');
         $pdo = $db->getConnection();
 
-        $stmt = $pdo->query("PRAGMA table_info(tasks)");
+        $stmt = $pdo->query('PRAGMA table_info(tasks)');
         $columns = $stmt->fetchAll();
 
         $columnNames = array_map(
@@ -113,7 +113,7 @@ class DatabaseTest extends TestCase
         $db = Database::getInstance(':memory:');
         $pdo = $db->getConnection();
 
-        $stmt = $pdo->query("PRAGMA table_info(tasks)");
+        $stmt = $pdo->query('PRAGMA table_info(tasks)');
         $columns = $stmt->fetchAll();
 
         $columnNames = array_map(
@@ -146,7 +146,7 @@ class DatabaseTest extends TestCase
         $db = Database::getInstance(':memory:');
         $pdo = $db->getConnection();
 
-        $stmt = $pdo->query("PRAGMA table_info(users)");
+        $stmt = $pdo->query('PRAGMA table_info(users)');
         $columns = $stmt->fetchAll();
 
         $columnNames = array_map(
@@ -166,7 +166,7 @@ class DatabaseTest extends TestCase
         $db = Database::getInstance(':memory:');
         $pdo = $db->getConnection();
 
-        $stmt = $pdo->query("PRAGMA table_info(tasks)");
+        $stmt = $pdo->query('PRAGMA table_info(tasks)');
         $columns = $stmt->fetchAll();
 
         $columnNames = array_map(

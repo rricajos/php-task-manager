@@ -11,7 +11,6 @@ use MiniProject\Status;
 use MiniProject\Task;
 use MiniProject\TaskRepository;
 use MiniProject\TaskService;
-use MiniProject\ValidationException;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -38,7 +37,7 @@ class TaskWorkflowTest extends TestCase
 
         // Insertar un usuario de prueba para satisfacer la FK
         $pdo = Database::getInstance()->getConnection();
-        $pdo->exec("INSERT INTO users (username, password_hash) VALUES ('testuser', 'hash')");
+        $pdo->exec('INSERT INTO users (username, password_hash) VALUES (\'testuser\', \'hash\')');
 
         $this->repository = new TaskRepository(userId: 1);
         $this->service = new TaskService(repository: $this->repository);

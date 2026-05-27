@@ -28,15 +28,15 @@ declare(strict_types=1);
 require_once __DIR__ . '/src/bootstrap.php';
 
 // Importar las clases necesarias
+use MiniProject\ApiController;
+use MiniProject\AppException;
+use MiniProject\AuthService;
 use MiniProject\Database;
+use MiniProject\ExportService;
+use MiniProject\JsonResponse;
+use MiniProject\Router;
 use MiniProject\TaskRepository;
 use MiniProject\TaskService;
-use MiniProject\ExportService;
-use MiniProject\AuthService;
-use MiniProject\ApiController;
-use MiniProject\Router;
-use MiniProject\JsonResponse;
-use MiniProject\AppException;
 
 // ---------------------------------------------------------------
 //  Cabeceras CORS para desarrollo

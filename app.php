@@ -19,13 +19,13 @@ declare(strict_types=1);
 require_once __DIR__ . '/src/bootstrap.php';
 
 // Importar las clases necesarias
+use MiniProject\AppException;
 use MiniProject\Database;
+use MiniProject\ExportService;
+use MiniProject\NotFoundException;
 use MiniProject\TaskRepository;
 use MiniProject\TaskService;
-use MiniProject\ExportService;
-use MiniProject\AppException;
 use MiniProject\ValidationException;
-use MiniProject\NotFoundException;
 
 // ---------------------------------------------------------------
 //  Constantes de colores ANSI para la terminal
@@ -64,13 +64,13 @@ function limpiarPantalla(): void
 function mostrarBanner(): void
 {
     echo PHP_EOL;
-    echo CYAN . BOLD . "  ╔══════════════════════════════════════════╗" . RESET . PHP_EOL;
-    echo CYAN . BOLD . "  ║                                          ║" . RESET . PHP_EOL;
-    echo CYAN . BOLD . "  ║     " . WHITE . BG_BLUE . " GESTOR DE TAREAS CLI " . RESET . CYAN . BOLD . "              ║" . RESET . PHP_EOL;
-    echo CYAN . BOLD . "  ║                                          ║" . RESET . PHP_EOL;
-    echo CYAN . BOLD . "  ║  " . DIM . "PHP 8 | SQLite | Patrones de Diseno" . RESET . CYAN . BOLD . " ║" . RESET . PHP_EOL;
-    echo CYAN . BOLD . "  ║                                          ║" . RESET . PHP_EOL;
-    echo CYAN . BOLD . "  ╚══════════════════════════════════════════╝" . RESET . PHP_EOL;
+    echo CYAN . BOLD . '  ╔══════════════════════════════════════════╗' . RESET . PHP_EOL;
+    echo CYAN . BOLD . '  ║                                          ║' . RESET . PHP_EOL;
+    echo CYAN . BOLD . '  ║     ' . WHITE . BG_BLUE . ' GESTOR DE TAREAS CLI ' . RESET . CYAN . BOLD . '              ║' . RESET . PHP_EOL;
+    echo CYAN . BOLD . '  ║                                          ║' . RESET . PHP_EOL;
+    echo CYAN . BOLD . '  ║  ' . DIM . 'PHP 8 | SQLite | Patrones de Diseno' . RESET . CYAN . BOLD . ' ║' . RESET . PHP_EOL;
+    echo CYAN . BOLD . '  ║                                          ║' . RESET . PHP_EOL;
+    echo CYAN . BOLD . '  ╚══════════════════════════════════════════╝' . RESET . PHP_EOL;
     echo PHP_EOL;
 }
 
@@ -79,19 +79,19 @@ function mostrarBanner(): void
  */
 function mostrarMenu(): void
 {
-    echo YELLOW . BOLD . "  ┌─────────── MENU PRINCIPAL ───────────┐" . RESET . PHP_EOL;
-    echo YELLOW       . "  │                                       │" . RESET . PHP_EOL;
-    echo YELLOW       . "  │  " . GREEN  . "1." . RESET . " Agregar tarea                   " . YELLOW . "│" . RESET . PHP_EOL;
-    echo YELLOW       . "  │  " . GREEN  . "2." . RESET . " Listar tareas                   " . YELLOW . "│" . RESET . PHP_EOL;
-    echo YELLOW       . "  │  " . GREEN  . "3." . RESET . " Completar tarea                 " . YELLOW . "│" . RESET . PHP_EOL;
-    echo YELLOW       . "  │  " . GREEN  . "4." . RESET . " Eliminar tarea                  " . YELLOW . "│" . RESET . PHP_EOL;
-    echo YELLOW       . "  │  " . GREEN  . "5." . RESET . " Buscar tareas                   " . YELLOW . "│" . RESET . PHP_EOL;
-    echo YELLOW       . "  │  " . GREEN  . "6." . RESET . " Exportar tareas                 " . YELLOW . "│" . RESET . PHP_EOL;
-    echo YELLOW       . "  │  " . GREEN  . "7." . RESET . " Estadisticas                    " . YELLOW . "│" . RESET . PHP_EOL;
-    echo YELLOW       . "  │  " . GREEN  . "8." . RESET . " Editar tarea                    " . YELLOW . "│" . RESET . PHP_EOL;
-    echo YELLOW       . "  │  " . RED    . "0." . RESET . " Salir                           " . YELLOW . "│" . RESET . PHP_EOL;
-    echo YELLOW       . "  │                                       │" . RESET . PHP_EOL;
-    echo YELLOW . BOLD . "  └───────────────────────────────────────┘" . RESET . PHP_EOL;
+    echo YELLOW . BOLD . '  ┌─────────── MENU PRINCIPAL ───────────┐' . RESET . PHP_EOL;
+    echo YELLOW       . '  │                                       │' . RESET . PHP_EOL;
+    echo YELLOW       . '  │  ' . GREEN  . '1.' . RESET . ' Agregar tarea                   ' . YELLOW . '│' . RESET . PHP_EOL;
+    echo YELLOW       . '  │  ' . GREEN  . '2.' . RESET . ' Listar tareas                   ' . YELLOW . '│' . RESET . PHP_EOL;
+    echo YELLOW       . '  │  ' . GREEN  . '3.' . RESET . ' Completar tarea                 ' . YELLOW . '│' . RESET . PHP_EOL;
+    echo YELLOW       . '  │  ' . GREEN  . '4.' . RESET . ' Eliminar tarea                  ' . YELLOW . '│' . RESET . PHP_EOL;
+    echo YELLOW       . '  │  ' . GREEN  . '5.' . RESET . ' Buscar tareas                   ' . YELLOW . '│' . RESET . PHP_EOL;
+    echo YELLOW       . '  │  ' . GREEN  . '6.' . RESET . ' Exportar tareas                 ' . YELLOW . '│' . RESET . PHP_EOL;
+    echo YELLOW       . '  │  ' . GREEN  . '7.' . RESET . ' Estadisticas                    ' . YELLOW . '│' . RESET . PHP_EOL;
+    echo YELLOW       . '  │  ' . GREEN  . '8.' . RESET . ' Editar tarea                    ' . YELLOW . '│' . RESET . PHP_EOL;
+    echo YELLOW       . '  │  ' . RED    . '0.' . RESET . ' Salir                           ' . YELLOW . '│' . RESET . PHP_EOL;
+    echo YELLOW       . '  │                                       │' . RESET . PHP_EOL;
+    echo YELLOW . BOLD . '  └───────────────────────────────────────┘' . RESET . PHP_EOL;
     echo PHP_EOL;
 }
 
@@ -121,7 +121,7 @@ function leerEntrada(string $prompt): string
  */
 function mostrarExito(string $mensaje): void
 {
-    echo PHP_EOL . GREEN . BOLD . "  [OK] " . RESET . GREEN . $mensaje . RESET . PHP_EOL;
+    echo PHP_EOL . GREEN . BOLD . '  [OK] ' . RESET . GREEN . $mensaje . RESET . PHP_EOL;
 }
 
 /**
@@ -131,7 +131,7 @@ function mostrarExito(string $mensaje): void
  */
 function mostrarError(string $mensaje): void
 {
-    echo PHP_EOL . RED . BOLD . "  [ERROR] " . RESET . RED . $mensaje . RESET . PHP_EOL;
+    echo PHP_EOL . RED . BOLD . '  [ERROR] ' . RESET . RED . $mensaje . RESET . PHP_EOL;
 }
 
 /**
@@ -162,20 +162,21 @@ function mostrarListaTareas(array $tareas): void
 {
     if (empty($tareas)) {
         mostrarInfo('No se encontraron tareas.');
+
         return;
     }
 
     echo PHP_EOL;
-    echo BOLD . "  " . str_pad('ID', 6) . str_pad('Estado', 6) . str_pad('Pri', 6)
+    echo BOLD . '  ' . str_pad('ID', 6) . str_pad('Estado', 6) . str_pad('Pri', 6)
        . str_pad('Titulo', 32) . 'Prioridad' . RESET . PHP_EOL;
-    echo DIM . "  " . str_repeat('-', 60) . RESET . PHP_EOL;
+    echo DIM . '  ' . str_repeat('-', 60) . RESET . PHP_EOL;
 
     foreach ($tareas as $tarea) {
         echo $tarea->formatoLinea() . PHP_EOL;
     }
 
-    echo DIM . "  " . str_repeat('-', 60) . RESET . PHP_EOL;
-    echo DIM . "  Total: " . count($tareas) . " tarea(s)" . RESET . PHP_EOL;
+    echo DIM . '  ' . str_repeat('-', 60) . RESET . PHP_EOL;
+    echo DIM . '  Total: ' . count($tareas) . ' tarea(s)' . RESET . PHP_EOL;
 }
 
 // ---------------------------------------------------------------
@@ -190,19 +191,20 @@ function mostrarListaTareas(array $tareas): void
  */
 function accionAgregarTarea(TaskService $service): void
 {
-    echo PHP_EOL . MAGENTA . BOLD . "  === AGREGAR NUEVA TAREA ===" . RESET . PHP_EOL . PHP_EOL;
+    echo PHP_EOL . MAGENTA . BOLD . '  === AGREGAR NUEVA TAREA ===' . RESET . PHP_EOL . PHP_EOL;
 
     // Solicitar datos al usuario
     $titulo = leerEntrada('Titulo: ');
 
     if ($titulo === '') {
         mostrarError('El titulo no puede estar vacio.');
+
         return;
     }
 
     $descripcion = leerEntrada('Descripcion (opcional): ');
 
-    echo CYAN . "  Prioridad (" . RED . "alta" . RESET . CYAN . "/" . YELLOW . "media" . RESET . CYAN . "/" . GREEN . "baja" . RESET . CYAN . "): " . RESET;
+    echo CYAN . '  Prioridad (' . RED . 'alta' . RESET . CYAN . '/' . YELLOW . 'media' . RESET . CYAN . '/' . GREEN . 'baja' . RESET . CYAN . '): ' . RESET;
     $prioridad = trim(fgets(STDIN) ?: 'media');
 
     // Si el usuario no ingresa nada, usar 'media' como predeterminado
@@ -238,9 +240,9 @@ function accionAgregarTarea(TaskService $service): void
  */
 function accionListarTareas(TaskService $service): void
 {
-    echo PHP_EOL . MAGENTA . BOLD . "  === LISTAR TAREAS ===" . RESET . PHP_EOL . PHP_EOL;
+    echo PHP_EOL . MAGENTA . BOLD . '  === LISTAR TAREAS ===' . RESET . PHP_EOL . PHP_EOL;
 
-    echo CYAN . "  Filtrar por estado (" . YELLOW . "pendiente" . RESET . CYAN . "/" . GREEN . "completada" . RESET . CYAN . "/" . BOLD . "todas" . RESET . CYAN . "): " . RESET;
+    echo CYAN . '  Filtrar por estado (' . YELLOW . 'pendiente' . RESET . CYAN . '/' . GREEN . 'completada' . RESET . CYAN . '/' . BOLD . 'todas' . RESET . CYAN . '): ' . RESET;
     $filtro = trim(fgets(STDIN) ?: 'todas');
 
     if ($filtro === '') {
@@ -262,18 +264,20 @@ function accionListarTareas(TaskService $service): void
  */
 function accionCompletarTarea(TaskService $service): void
 {
-    echo PHP_EOL . MAGENTA . BOLD . "  === COMPLETAR TAREA ===" . RESET . PHP_EOL . PHP_EOL;
+    echo PHP_EOL . MAGENTA . BOLD . '  === COMPLETAR TAREA ===' . RESET . PHP_EOL . PHP_EOL;
 
     // Primero mostrar las tareas pendientes
     try {
         $pendientes = $service->listarTareas('pendiente');
         if (empty($pendientes)) {
             mostrarInfo('No hay tareas pendientes para completar.');
+
             return;
         }
         mostrarListaTareas($pendientes);
     } catch (AppException $e) {
         mostrarError($e->getMessage());
+
         return;
     }
 
@@ -282,6 +286,7 @@ function accionCompletarTarea(TaskService $service): void
 
     if ($id === '') {
         mostrarError('Debes ingresar un ID.');
+
         return;
     }
 
@@ -302,18 +307,20 @@ function accionCompletarTarea(TaskService $service): void
  */
 function accionEliminarTarea(TaskService $service): void
 {
-    echo PHP_EOL . MAGENTA . BOLD . "  === ELIMINAR TAREA ===" . RESET . PHP_EOL . PHP_EOL;
+    echo PHP_EOL . MAGENTA . BOLD . '  === ELIMINAR TAREA ===' . RESET . PHP_EOL . PHP_EOL;
 
     // Mostrar todas las tareas para referencia
     try {
         $todas = $service->listarTareas('todas');
         if (empty($todas)) {
             mostrarInfo('No hay tareas para eliminar.');
+
             return;
         }
         mostrarListaTareas($todas);
     } catch (AppException $e) {
         mostrarError($e->getMessage());
+
         return;
     }
 
@@ -322,6 +329,7 @@ function accionEliminarTarea(TaskService $service): void
 
     if ($id === '') {
         mostrarError('Debes ingresar un ID.');
+
         return;
     }
 
@@ -330,6 +338,7 @@ function accionEliminarTarea(TaskService $service): void
 
     if (strtolower($confirmacion) !== 's') {
         mostrarInfo('Eliminacion cancelada.');
+
         return;
     }
 
@@ -348,12 +357,13 @@ function accionEliminarTarea(TaskService $service): void
  */
 function accionBuscarTareas(TaskService $service): void
 {
-    echo PHP_EOL . MAGENTA . BOLD . "  === BUSCAR TAREAS ===" . RESET . PHP_EOL . PHP_EOL;
+    echo PHP_EOL . MAGENTA . BOLD . '  === BUSCAR TAREAS ===' . RESET . PHP_EOL . PHP_EOL;
 
     $keyword = leerEntrada('Palabra clave: ');
 
     if ($keyword === '') {
         mostrarError('Debes ingresar una palabra clave.');
+
         return;
     }
 
@@ -375,7 +385,7 @@ function accionBuscarTareas(TaskService $service): void
  */
 function accionExportarTareas(TaskService $service, ExportService $exportService): void
 {
-    echo PHP_EOL . MAGENTA . BOLD . "  === EXPORTAR TAREAS ===" . RESET . PHP_EOL . PHP_EOL;
+    echo PHP_EOL . MAGENTA . BOLD . '  === EXPORTAR TAREAS ===' . RESET . PHP_EOL . PHP_EOL;
 
     // Mostrar formatos disponibles
     $formatos = $exportService->formatosDisponibles();
@@ -392,13 +402,14 @@ function accionExportarTareas(TaskService $service, ExportService $exportService
 
         if (empty($tareas)) {
             mostrarInfo('No hay tareas para exportar.');
+
             return;
         }
 
         $ruta = $exportService->exportar(tasks: $tareas, formato: $formato);
-        mostrarExito("Tareas exportadas exitosamente.");
+        mostrarExito('Tareas exportadas exitosamente.');
         mostrarInfo("Archivo: {$ruta}");
-        mostrarInfo("Total exportadas: " . count($tareas) . " tarea(s)");
+        mostrarInfo('Total exportadas: ' . count($tareas) . ' tarea(s)');
     } catch (ValidationException | AppException $e) {
         mostrarError($e->getMessage());
     }
@@ -430,18 +441,20 @@ function accionEstadisticas(TaskService $service): void
  */
 function accionEditarTarea(TaskService $service): void
 {
-    echo PHP_EOL . MAGENTA . BOLD . "  === EDITAR TAREA ===" . RESET . PHP_EOL . PHP_EOL;
+    echo PHP_EOL . MAGENTA . BOLD . '  === EDITAR TAREA ===' . RESET . PHP_EOL . PHP_EOL;
 
     // Mostrar todas las tareas para referencia
     try {
         $todas = $service->listarTareas('todas');
         if (empty($todas)) {
             mostrarInfo('No hay tareas para editar.');
+
             return;
         }
         mostrarListaTareas($todas);
     } catch (AppException $e) {
         mostrarError($e->getMessage());
+
         return;
     }
 
@@ -450,6 +463,7 @@ function accionEditarTarea(TaskService $service): void
 
     if ($id === '') {
         mostrarError('Debes ingresar un ID.');
+
         return;
     }
 
@@ -458,6 +472,7 @@ function accionEditarTarea(TaskService $service): void
         $tareaActual = $service->obtenerTarea($id);
     } catch (ValidationException | NotFoundException $e) {
         mostrarError($e->getMessage());
+
         return;
     }
 
@@ -471,7 +486,7 @@ function accionEditarTarea(TaskService $service): void
     $nuevoTitulo = leerEntrada("Titulo [{$tareaActual->titulo}]: ");
     $nuevaDescripcion = leerEntrada("Descripcion [{$tareaActual->descripcion}]: ");
 
-    echo CYAN . "  Prioridad [{$tareaActual->prioridad->value}] (" . RED . "alta" . RESET . CYAN . "/" . YELLOW . "media" . RESET . CYAN . "/" . GREEN . "baja" . RESET . CYAN . "): " . RESET;
+    echo CYAN . "  Prioridad [{$tareaActual->prioridad->value}] (" . RED . 'alta' . RESET . CYAN . '/' . YELLOW . 'media' . RESET . CYAN . '/' . GREEN . 'baja' . RESET . CYAN . '): ' . RESET;
     $nuevaPrioridad = trim(fgets(STDIN) ?: '');
 
     $fechaActual = $tareaActual->fechaVencimiento ?? 'ninguna';
@@ -565,20 +580,20 @@ function main(): void
 
         // Mensaje de despedida
         echo PHP_EOL;
-        echo GREEN . BOLD . "  Hasta luego! Gracias por usar el Gestor de Tareas." . RESET . PHP_EOL;
+        echo GREEN . BOLD . '  Hasta luego! Gracias por usar el Gestor de Tareas.' . RESET . PHP_EOL;
         echo PHP_EOL;
 
     } catch (AppException $e) {
         // Error critico de la aplicacion
         echo PHP_EOL;
-        echo RED . BOLD . "  ERROR CRITICO: " . RESET . RED . $e->getMessage() . RESET . PHP_EOL;
+        echo RED . BOLD . '  ERROR CRITICO: ' . RESET . RED . $e->getMessage() . RESET . PHP_EOL;
         echo DIM . "  Codigo: {$e->getCode()}" . RESET . PHP_EOL;
         echo PHP_EOL;
         exit(1);
     } catch (\Throwable $e) {
         // Error inesperado no manejado
         echo PHP_EOL;
-        echo RED . BOLD . "  ERROR INESPERADO: " . RESET . RED . $e->getMessage() . RESET . PHP_EOL;
+        echo RED . BOLD . '  ERROR INESPERADO: ' . RESET . RED . $e->getMessage() . RESET . PHP_EOL;
         echo DIM . "  Archivo: {$e->getFile()}:{$e->getLine()}" . RESET . PHP_EOL;
         echo PHP_EOL;
         exit(2);

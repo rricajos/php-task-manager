@@ -21,7 +21,13 @@
     "autoload": {
         "psr-4": {
             "MiniProject\\": "src/"
-        }
+        },
+        "classmap": [
+            "src/Task.php",
+            "src/AppException.php",
+            "src/ExportService.php",
+            "src/Router.php"
+        ]
     },
     "autoload-dev": {
         "psr-4": {

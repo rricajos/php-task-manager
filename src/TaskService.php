@@ -187,7 +187,7 @@ class TaskService
      * @param string $sortBy Campo de ordenamiento
      * @param string $sortDir Direccion: 'ASC' o 'DESC'
      * @param string|null $priority Filtro adicional de prioridad
-     * @return Task[]|array{tareas: array, total: int, page: int, per_page: int, total_pages: int} Lista de tareas o respuesta paginada
+     * @return Task[]|array{tareas: Task[], total: int, page: int, per_page: int, total_pages: int} Lista de tareas o respuesta paginada
      * @throws ValidationException Si el filtro no es valido
      */
     public function listarTareas(
@@ -220,6 +220,7 @@ class TaskService
             if ($statusValue !== null && $priority === null) {
                 return $this->repository->findByStatus(Status::from($statusValue));
             }
+
             // Si hay filtro de prioridad, usar paginacion sin limite
             return $this->repository->findAllPaginated(
                 limit: PHP_INT_MAX,
@@ -311,7 +312,7 @@ class TaskService
      * @param string $keyword Palabra clave de busqueda
      * @param int $page Numero de pagina (0 = sin paginacion, >=1 = paginado)
      * @param int $perPage Resultados por pagina (1-100)
-     * @return Task[]|array{tareas: array, total: int, page: int, per_page: int, total_pages: int} Lista de tareas o respuesta paginada
+     * @return Task[]|array{tareas: Task[], total: int, page: int, per_page: int, total_pages: int} Lista de tareas o respuesta paginada
      * @throws ValidationException Si la palabra clave esta vacia
      */
     public function buscarTareas(string $keyword, int $page = 0, int $perPage = 20): array

@@ -23,13 +23,13 @@ namespace MiniProject;
  *
  * Caracteristicas PHP 8: readonly, constructor promotion
  */
-readonly class Route
+class Route
 {
     /** @var string Expresion regular compilada a partir del patron */
-    public string $regex;
+    public readonly string $regex;
 
     /** @var string[] Nombres de los parametros dinamicos extraidos del patron */
-    public array $paramNames;
+    public readonly array $paramNames;
 
     /**
      * @param string $method Metodo HTTP (GET, POST, PATCH, DELETE)
@@ -37,9 +37,9 @@ readonly class Route
      * @param \Closure $handler Funcion que maneja la peticion
      */
     public function __construct(
-        public string $method,
-        public string $pattern,
-        public \Closure $handler,
+        public readonly string $method,
+        public readonly string $pattern,
+        public readonly \Closure $handler,
     ) {
         // Extraer nombres de parametros dinamicos del patron
         preg_match_all('/{(\w+)}/', $this->pattern, $matches);
@@ -59,15 +59,15 @@ readonly class Route
  *
  * Caracteristicas PHP 8: readonly, constructor promotion
  */
-readonly class RouteMatch
+class RouteMatch
 {
     /**
      * @param \Closure $handler Funcion que maneja la peticion
      * @param array<string, string> $params Parametros extraidos de la URI
      */
     public function __construct(
-        public \Closure $handler,
-        public array $params = [],
+        public readonly \Closure $handler,
+        public readonly array $params = [],
     ) {}
 }
 
