@@ -22,51 +22,10 @@ declare(strict_types=1);
  */
 
 // ---------------------------------------------------------------
-//  Autoloader (identico al de app.php para independencia)
+//  Autoloader compartido
 // ---------------------------------------------------------------
 
-/**
- * Registra el autoloader basado en namespaces.
- * Mapea MiniProject\ al directorio src/ del proyecto.
- */
-spl_autoload_register(function (string $className): void {
-    $prefix = 'MiniProject\\';
-    $baseDir = __DIR__ . '/src/';
-
-    $len = strlen($prefix);
-    if (strncmp($prefix, $className, $len) !== 0) {
-        return;
-    }
-
-    $relativeClass = substr($className, $len);
-
-    // Mapa de clases que comparten archivo
-    $classMap = [
-        // Enums definidos en Task.php
-        'Priority'             => 'Task.php',
-        'Status'               => 'Task.php',
-        // Excepciones definidas en AppException.php
-        'ValidationException'  => 'AppException.php',
-        'NotFoundException'    => 'AppException.php',
-        // Interfaz y exportadores definidos en ExportService.php
-        'ExporterInterface'    => 'ExportService.php',
-        'JsonExporter'         => 'ExportService.php',
-        'CsvExporter'          => 'ExportService.php',
-        // Clases del Router definidas en Router.php
-        'Route'                => 'Router.php',
-        'RouteMatch'           => 'Router.php',
-    ];
-
-    if (isset($classMap[$relativeClass])) {
-        $file = $baseDir . $classMap[$relativeClass];
-    } else {
-        $file = $baseDir . str_replace('\\', '/', $relativeClass) . '.php';
-    }
-
-    if (file_exists($file)) {
-        require_once $file;
-    }
-});
+require_once __DIR__ . '/src/bootstrap.php';
 
 // Importar las clases necesarias
 use MiniProject\Database;
@@ -247,7 +206,7 @@ $router->post('/tasks', function () use ($controller, $authService): void {
     $controller->crearTarea($body);
 });
 
-$router->put('/tasks/{id}', function (array $params) use ($controller, $authService): void {
+$router->patch('/tasks/{id}', function (array $params) use ($controller, $authService): void {
     $userData = requireAuth($authService);
     $controller->setUserId($userData['user_id']);
     $body = obtenerBodyJson();

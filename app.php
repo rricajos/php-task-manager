@@ -13,57 +13,10 @@ declare(strict_types=1);
  */
 
 // ---------------------------------------------------------------
-//  Autoloader simple (sin necesidad de Composer)
+//  Autoloader compartido
 // ---------------------------------------------------------------
 
-/**
- * Registra un autoloader basado en namespaces.
- *
- * Mapea el namespace MiniProject\ al directorio src/ del proyecto.
- * Asi podemos usar 'use MiniProject\...' sin require manuales.
- */
-spl_autoload_register(function (string $className): void {
-    // Prefijo del namespace del proyecto
-    $prefix = 'MiniProject\\';
-    $baseDir = __DIR__ . '/src/';
-
-    // Verificar si la clase pertenece a nuestro namespace
-    $len = strlen($prefix);
-    if (strncmp($prefix, $className, $len) !== 0) {
-        return; // No es de nuestro namespace, dejar que otro autoloader lo maneje
-    }
-
-    // Obtener el nombre relativo de la clase sin el prefijo
-    $relativeClass = substr($className, $len);
-
-    // Mapa de clases que comparten archivo con otras definiciones.
-    // Varias clases/enums/interfaces viven en el mismo archivo PHP,
-    // por lo que necesitamos mapearlas al archivo correcto.
-    $classMap = [
-        // Enums definidos en Task.php
-        'Priority'             => 'Task.php',
-        'Status'               => 'Task.php',
-        // Excepciones definidas en AppException.php
-        'ValidationException'  => 'AppException.php',
-        'NotFoundException'    => 'AppException.php',
-        // Interfaz y exportadores definidos en ExportService.php
-        'ExporterInterface'    => 'ExportService.php',
-        'JsonExporter'         => 'ExportService.php',
-        'CsvExporter'          => 'ExportService.php',
-    ];
-
-    // Usar el mapa si la clase esta registrada, sino intentar ruta directa
-    if (isset($classMap[$relativeClass])) {
-        $file = $baseDir . $classMap[$relativeClass];
-    } else {
-        $file = $baseDir . str_replace('\\', '/', $relativeClass) . '.php';
-    }
-
-    // Cargar el archivo si existe
-    if (file_exists($file)) {
-        require_once $file;
-    }
-});
+require_once __DIR__ . '/src/bootstrap.php';
 
 // Importar las clases necesarias
 use MiniProject\Database;

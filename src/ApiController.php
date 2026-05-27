@@ -294,7 +294,7 @@ class ApiController
     }
 
     /**
-     * PUT /tasks/{id} - Actualiza una tarea existente.
+     * PATCH /tasks/{id} - Actualiza parcialmente una tarea existente.
      *
      * Espera un cuerpo JSON con los campos a actualizar:
      * - title (string, opcional): Nuevo titulo
@@ -387,9 +387,7 @@ class ApiController
 
             $this->getTaskService()->eliminarTarea($id);
 
-            JsonResponse::success(
-                message: "Tarea #{$id} eliminada permanentemente",
-            );
+            JsonResponse::noContent();
         } catch (NotFoundException $e) {
             JsonResponse::error(
                 message: $e->getMessage(),

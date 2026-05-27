@@ -198,4 +198,30 @@ class JsonResponseTest extends TestCase
         $this->assertTrue($data['success']);
         $this->assertSame('Recurso creado', $data['message']);
     }
+
+    /**
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
+    public function testNoContentResponse(): void
+    {
+        ob_start();
+
+        try {
+            JsonResponse::noContent();
+        } catch (\Throwable) {
+            // exit() may throw
+        }
+
+        $output = ob_get_clean();
+
+        if ($output === false) {
+            $this->markTestSkipped(
+                'No se pudo capturar la salida de JsonResponse::noContent() - exit() termino el proceso'
+            );
+        }
+
+        // 204 No Content should have empty body
+        $this->assertSame('', $output);
+    }
 }

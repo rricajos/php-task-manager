@@ -32,6 +32,7 @@ class ApiWorkflowTest extends TestCase
 
     protected function setUp(): void
     {
+        putenv('JWT_SECRET=test_secret_key_for_phpunit');
         Database::resetInstance();
         Database::getInstance(':memory:');
 
@@ -47,6 +48,7 @@ class ApiWorkflowTest extends TestCase
     protected function tearDown(): void
     {
         Database::resetInstance();
+        putenv('JWT_SECRET');
     }
 
     // ---------------------------------------------------------------

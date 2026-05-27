@@ -290,10 +290,10 @@ paths:
         '422':
           $ref: '#/components/responses/ValidationError'
 
-    put:
+    patch:
       tags: [Tasks]
       operationId: updateTask
-      summary: Actualizar una tarea existente
+      summary: Actualizar parcialmente una tarea existente
       description: |
         Actualiza los campos especificados de una tarea existente.
         Solo se actualizan los campos incluidos en el body; los campos

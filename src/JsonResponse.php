@@ -88,6 +88,20 @@ class JsonResponse
     }
 
     /**
+     * Envia una respuesta HTTP 204 No Content (sin cuerpo).
+     *
+     * Usado para operaciones exitosas que no retornan datos,
+     * como DELETE de un recurso.
+     *
+     * @return never Termina la ejecucion despues de enviar la respuesta
+     */
+    public static function noContent(): never
+    {
+        http_response_code(204);
+        exit;
+    }
+
+    /**
      * Envia la respuesta HTTP con cabeceras JSON y codigo de estado.
      *
      * Establece el Content-Type como application/json, codifica el cuerpo

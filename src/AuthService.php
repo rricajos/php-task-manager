@@ -24,21 +24,31 @@ class AuthService
     /** Duracion del token en segundos (24 horas por defecto) */
     private const JWT_TTL_DEFAULT = 86400;
 
-    /** Algoritmo de firma para el JWT */
+    /** Algoritmo de firma para hash_hmac() */
     private const JWT_ALGO = 'SHA256';
+
+    /** Nombre del algoritmo en el header JWT (RFC 7518) */
+    private const JWT_ALG_NAME = 'HS256';
 
     /** Conexion PDO a la base de datos */
     private readonly PDO $pdo;
 
     /**
-     * Obtiene la clave secreta JWT desde variable de entorno con fallback.
+     * Obtiene la clave secreta JWT desde variable de entorno.
      *
      * @return string Clave secreta para firmar tokens JWT
+     * @throws AppException Si JWT_SECRET no esta configurado
      */
     private static function getJwtSecret(): string
     {
         $secret = getenv('JWT_SECRET');
-        return ($secret !== false && $secret !== '') ? $secret : 'mini_project_api_secret_key_2024';
+        if ($secret === false || $secret === '') {
+            throw new AppException(
+                message: 'JWT_SECRET no esta configurado. Define la variable de entorno JWT_SECRET.',
+                code: AppException::ERROR_GENERAL,
+            );
+        }
+        return $secret;
     }
 
     /**
@@ -240,6 +250,19 @@ class AuthService
 
         [$headerB64, $payloadB64, $firmaB64] = $partes;
 
+        // Decodificar y validar el algoritmo del header
+        $header = json_decode(
+            $this->base64UrlDecode($headerB64),
+            associative: true,
+        );
+
+        if ($header === null || !isset($header['alg']) || $header['alg'] !== self::JWT_ALG_NAME) {
+            throw new AppException(
+                message: 'Token JWT invalido: algoritmo no soportado',
+                code: AppException::ERROR_GENERAL,
+            );
+        }
+
         // Verificar la firma
         $firmaEsperada = $this->base64UrlEncode(
             hash_hmac(self::JWT_ALGO, "{$headerB64}.{$payloadB64}", self::getJwtSecret(), true)
@@ -283,20 +306,22 @@ class AuthService
      * "Bearer <token>". Es el punto de entrada del middleware de
      * autenticacion.
      *
+     * @param string|null $authHeader Header de autorizacion. Si null, se lee de $_SERVER.
      * @return array{user_id: int, username: string} Datos del usuario autenticado
      * @throws AppException Si no hay token o es invalido
      */
-    public function autenticar(): array
+    public function autenticar(?string $authHeader = null): array
     {
-        // Obtener el header Authorization
-        $authHeader = $_SERVER['HTTP_AUTHORIZATION']
-            ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION']
-            ?? '';
+        // Obtener el header Authorization desde $_SERVER si no se proporciona
+        if ($authHeader === null) {
+            $authHeader = $_SERVER['HTTP_AUTHORIZATION']
+                ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION']
+                ?? '';
 
-        // Si no hay header, intentar con apache_request_headers
-        if ($authHeader === '' && function_exists('apache_request_headers')) {
-            $headers = apache_request_headers();
-            $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
+            if ($authHeader === '' && function_exists('apache_request_headers')) {
+                $headers = apache_request_headers();
+                $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
+            }
         }
 
         if ($authHeader === '') {
@@ -342,7 +367,7 @@ class AuthService
 
         // Cabecera del JWT
         $header = [
-            'alg' => 'HS256',
+            'alg' => self::JWT_ALG_NAME,
             'typ' => 'JWT',
         ];
 

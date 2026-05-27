@@ -23,6 +23,7 @@ class AuthServiceTest extends TestCase
 
     protected function setUp(): void
     {
+        putenv('JWT_SECRET=test_secret_key_for_phpunit');
         Database::resetInstance();
         Database::getInstance(':memory:');
         $this->auth = new AuthService();
@@ -31,6 +32,7 @@ class AuthServiceTest extends TestCase
     protected function tearDown(): void
     {
         Database::resetInstance();
+        putenv('JWT_SECRET');
     }
 
     // ---------------------------------------------------------------
@@ -230,8 +232,8 @@ class AuthServiceTest extends TestCase
         ]));
         $payload = rtrim(strtr($payload, '+/', '-_'), '=');
 
-        // Sign with the default secret key
-        $secret = 'mini_project_api_secret_key_2024';
+        // Sign with the test secret key
+        $secret = 'test_secret_key_for_phpunit';
         $firma = hash_hmac('SHA256', "{$header}.{$payload}", $secret, true);
         $firmaB64 = rtrim(strtr(base64_encode($firma), '+/', '-_'), '=');
 
@@ -344,5 +346,121 @@ class AuthServiceTest extends TestCase
         );
 
         $this->assertIsInt($resultado['id']);
+    }
+
+    // ---------------------------------------------------------------
+    //  Tests de seguridad JWT: validacion de algoritmo
+    // ---------------------------------------------------------------
+
+    public function testValidarTokenAlgNoneRechazado(): void
+    {
+        $header = base64_encode(json_encode(['alg' => 'none', 'typ' => 'JWT']));
+        $header = rtrim(strtr($header, '+/', '-_'), '=');
+
+        $payload = base64_encode(json_encode([
+            'user_id' => 1,
+            'username' => 'attacker',
+            'iat' => time(),
+            'exp' => time() + 3600,
+        ]));
+        $payload = rtrim(strtr($payload, '+/', '-_'), '=');
+
+        $token = "{$header}.{$payload}.emptysig";
+
+        $this->expectException(AppException::class);
+        $this->expectExceptionMessage('algoritmo no soportado');
+
+        $this->auth->validarToken($token);
+    }
+
+    public function testValidarTokenAlgoritmoIncorrectoRechazado(): void
+    {
+        $header = base64_encode(json_encode(['alg' => 'RS256', 'typ' => 'JWT']));
+        $header = rtrim(strtr($header, '+/', '-_'), '=');
+
+        $payload = base64_encode(json_encode([
+            'user_id' => 1,
+            'username' => 'attacker',
+            'iat' => time(),
+            'exp' => time() + 3600,
+        ]));
+        $payload = rtrim(strtr($payload, '+/', '-_'), '=');
+
+        $secret = 'test_secret_key_for_phpunit';
+        $firma = hash_hmac('SHA256', "{$header}.{$payload}", $secret, true);
+        $firmaB64 = rtrim(strtr(base64_encode($firma), '+/', '-_'), '=');
+
+        $token = "{$header}.{$payload}.{$firmaB64}";
+
+        $this->expectException(AppException::class);
+        $this->expectExceptionMessage('algoritmo no soportado');
+
+        $this->auth->validarToken($token);
+    }
+
+    // ---------------------------------------------------------------
+    //  Tests de JWT_SECRET obligatorio
+    // ---------------------------------------------------------------
+
+    public function testJwtSecretFaltanteLanzaExcepcionEnLogin(): void
+    {
+        // Registrar con secret configurado
+        $this->auth->registrar(username: 'secrettest', password: 'password123');
+
+        // Quitar el secret
+        putenv('JWT_SECRET');
+
+        $this->expectException(AppException::class);
+        $this->expectExceptionMessage('JWT_SECRET');
+
+        // Login intenta generar token -> necesita secret
+        $this->auth->login(username: 'secrettest', password: 'password123');
+    }
+
+    public function testJwtSecretFaltanteLanzaExcepcionEnValidar(): void
+    {
+        // Registrar y login con secret configurado
+        $this->auth->registrar(username: 'secrettest2', password: 'password123');
+        $result = $this->auth->login(username: 'secrettest2', password: 'password123');
+
+        // Quitar el secret
+        putenv('JWT_SECRET');
+
+        $this->expectException(AppException::class);
+        $this->expectExceptionMessage('JWT_SECRET');
+
+        // Validacion tambien necesita secret
+        $this->auth->validarToken($result['token']);
+    }
+
+    // ---------------------------------------------------------------
+    //  Tests de autenticar() con header inyectado
+    // ---------------------------------------------------------------
+
+    public function testAutenticarConHeaderInyectado(): void
+    {
+        $this->auth->registrar(username: 'authuser', password: 'password123');
+        $loginResult = $this->auth->login(username: 'authuser', password: 'password123');
+
+        $result = $this->auth->autenticar('Bearer ' . $loginResult['token']);
+
+        $this->assertArrayHasKey('user_id', $result);
+        $this->assertSame('authuser', $result['username']);
+    }
+
+    public function testAutenticarConHeaderVacio(): void
+    {
+        $this->expectException(AppException::class);
+        $this->expectExceptionMessage('Token de autenticacion requerido');
+
+        $this->auth->autenticar('');
+    }
+
+    public function testAutenticarConFormatoInvalido(): void
+    {
+        $this->expectException(AppException::class);
+        $this->expectExceptionMessage('Formato de token invalido');
+
+        $this->auth->autenticar('NotBearer some-token');
     }
 }
