@@ -115,7 +115,8 @@ class Task
         public readonly string $fechaCreacion = '',
         public readonly ?string $fechaCompletada = null,
         public readonly ?string $fechaVencimiento = null,
-    ) {}
+    ) {
+    }
 
     /**
      * Metodo de fabrica estatico: crea un Task desde una fila de la base de datos.

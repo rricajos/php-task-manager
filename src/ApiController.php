@@ -36,7 +36,8 @@ class ApiController
         private readonly TaskService $taskService,
         private readonly ExportService $exportService,
         private readonly AuthService $authService,
-    ) {}
+    ) {
+    }
 
     /**
      * Establece el ID del usuario autenticado y crea servicios vinculados.
@@ -195,7 +196,7 @@ class ApiController
 
             // Convertir las tareas a arrays para la respuesta JSON
             $tareasArray = array_map(
-                callback: fn(Task $t): array => $t->toArray(),
+                callback: fn (Task $t): array => $t->toArray(),
                 array: $resultado['tareas'],
             );
 
@@ -422,7 +423,7 @@ class ApiController
             );
 
             $tareasArray = array_map(
-                callback: fn(Task $t): array => $t->toArray(),
+                callback: fn (Task $t): array => $t->toArray(),
                 array: $resultado['tareas'],
             );
 

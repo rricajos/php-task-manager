@@ -279,7 +279,7 @@ class TaskWorkflowTest extends TestCase
         $this->assertCount(2, $todas);
 
         // Verificar que las tareas correctas sobrevivieron
-        $ids = array_map(fn(Task $t) => $t->id, $todas);
+        $ids = array_map(fn (Task $t) => $t->id, $todas);
         $this->assertContains($t1->id, $ids);
         $this->assertContains($t3->id, $ids);
         $this->assertNotContains($t2->id, $ids);

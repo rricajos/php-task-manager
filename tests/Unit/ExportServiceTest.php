@@ -290,7 +290,7 @@ class ExportServiceTest extends TestCase
         $service = new ExportService(outputDir: $this->tempDir);
 
         // Crear un exportador personalizado con una clase anonima
-        $customExporter = new class implements ExporterInterface {
+        $customExporter = new class () implements ExporterInterface {
             public function export(array $tasks): string
             {
                 return '/tmp/custom_export.txt';

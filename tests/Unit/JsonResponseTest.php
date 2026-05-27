@@ -15,6 +15,8 @@ use PHPUnit\Framework\TestCase;
  * evitar que exit() termine el runner de PHPUnit.
  *
  * @covers \MiniProject\JsonResponse
+ * @runInSeparateProcess
+ * @preserveGlobalState disabled
  */
 class JsonResponseTest extends TestCase
 {

@@ -68,7 +68,8 @@ class RouteMatch
     public function __construct(
         public readonly \Closure $handler,
         public readonly array $params = [],
-    ) {}
+    ) {
+    }
 }
 
 /**
@@ -192,7 +193,7 @@ class Router
                     // Extraer solo los parametros con nombre (no los numericos)
                     $params = array_filter(
                         $matches,
-                        fn(string $key): bool => !is_numeric($key),
+                        fn (string $key): bool => !is_numeric($key),
                         ARRAY_FILTER_USE_KEY,
                     );
 

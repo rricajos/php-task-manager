@@ -56,7 +56,8 @@ class JsonExporter implements ExporterInterface
      */
     public function __construct(
         private readonly string $outputDir,
-    ) {}
+    ) {
+    }
 
     /**
      * Exporta las tareas a un archivo JSON con timestamp en el nombre.
@@ -79,7 +80,7 @@ class JsonExporter implements ExporterInterface
             'exportado_en' => date('Y-m-d H:i:s'),
             'total_tareas' => count($tasks),
             'tareas' => array_map(
-                callback: fn(Task $t): array => $t->toArray(),
+                callback: fn (Task $t): array => $t->toArray(),
                 array: $tasks,
             ),
         ];
@@ -118,7 +119,7 @@ class JsonExporter implements ExporterInterface
             'exportado_en' => date('Y-m-d H:i:s'),
             'total_tareas' => count($tasks),
             'tareas' => array_map(
-                callback: fn(Task $t): array => $t->toArray(),
+                callback: fn (Task $t): array => $t->toArray(),
                 array: $tasks,
             ),
         ];
@@ -173,7 +174,8 @@ class CsvExporter implements ExporterInterface
      */
     public function __construct(
         private readonly string $outputDir,
-    ) {}
+    ) {
+    }
 
     /**
      * Exporta las tareas a un archivo CSV con encabezados.

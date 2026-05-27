@@ -24,7 +24,8 @@ class TaskService
      */
     public function __construct(
         private readonly TaskRepository $repository,
-    ) {}
+    ) {
+    }
 
     /**
      * Crea y guarda una nueva tarea validando los datos de entrada.
@@ -435,7 +436,7 @@ class TaskService
 
         if ($enum === null) {
             $valoresValidos = implode(', ', array_map(
-                fn(Priority $p): string => $p->value,
+                fn (Priority $p): string => $p->value,
                 Priority::cases(),
             ));
 

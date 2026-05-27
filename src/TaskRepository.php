@@ -53,7 +53,7 @@ class TaskRepository
 
             // Mapear cada fila a una instancia de Task usando el metodo de fabrica
             return array_map(
-                callback: fn(array $row): Task => Task::fromRow($row),
+                callback: fn (array $row): Task => Task::fromRow($row),
                 array: $rows,
             );
         } catch (PDOException $e) {
@@ -125,7 +125,7 @@ class TaskRepository
             $rows = $stmt->fetchAll();
 
             return array_map(
-                callback: fn(array $row): Task => Task::fromRow($row),
+                callback: fn (array $row): Task => Task::fromRow($row),
                 array: $rows,
             );
         } catch (PDOException $e) {
@@ -202,7 +202,7 @@ class TaskRepository
             $rows = $stmt->fetchAll();
 
             return array_map(
-                callback: fn(array $row): Task => Task::fromRow($row),
+                callback: fn (array $row): Task => Task::fromRow($row),
                 array: $rows,
             );
         } catch (PDOException $e) {
@@ -280,7 +280,7 @@ class TaskRepository
             $rows = $stmt->fetchAll();
 
             return array_map(
-                callback: fn(array $row): Task => Task::fromRow($row),
+                callback: fn (array $row): Task => Task::fromRow($row),
                 array: $rows,
             );
         } catch (PDOException $e) {

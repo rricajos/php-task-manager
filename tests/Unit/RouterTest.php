@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use MiniProject\Router;
 use MiniProject\RouteMatch;
+use MiniProject\Router;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -29,7 +29,7 @@ class RouterTest extends TestCase
     public function testGetRouteMatches(): void
     {
         $router = new Router();
-        $handler = fn() => 'get response';
+        $handler = fn () => 'get response';
 
         $router->get('/test', $handler);
 
@@ -43,7 +43,7 @@ class RouterTest extends TestCase
     public function testPostRouteMatches(): void
     {
         $router = new Router();
-        $handler = fn() => 'post response';
+        $handler = fn () => 'post response';
 
         $router->post('/test', $handler);
 
@@ -56,7 +56,7 @@ class RouterTest extends TestCase
     public function testPatchRouteMatches(): void
     {
         $router = new Router();
-        $handler = fn() => 'patch response';
+        $handler = fn () => 'patch response';
 
         $router->patch('/test', $handler);
 
@@ -69,7 +69,7 @@ class RouterTest extends TestCase
     public function testDeleteRouteMatches(): void
     {
         $router = new Router();
-        $handler = fn() => 'delete response';
+        $handler = fn () => 'delete response';
 
         $router->delete('/test', $handler);
 
@@ -82,7 +82,7 @@ class RouterTest extends TestCase
     public function testPutRouteMatches(): void
     {
         $router = new Router();
-        $handler = fn() => 'put response';
+        $handler = fn () => 'put response';
 
         $router->put('/test', $handler);
 
@@ -99,7 +99,7 @@ class RouterTest extends TestCase
     public function testParameterExtraction(): void
     {
         $router = new Router();
-        $handler = fn() => 'task detail';
+        $handler = fn () => 'task detail';
 
         $router->get('/tasks/{id}', $handler);
 
@@ -113,7 +113,7 @@ class RouterTest extends TestCase
     public function testMultipleParameters(): void
     {
         $router = new Router();
-        $handler = fn() => 'nested resource';
+        $handler = fn () => 'nested resource';
 
         $router->get('/users/{userId}/tasks/{taskId}', $handler);
 
@@ -132,7 +132,7 @@ class RouterTest extends TestCase
     public function testTrailingSlashNormalized(): void
     {
         $router = new Router();
-        $handler = fn() => 'tasks list';
+        $handler = fn () => 'tasks list';
 
         $router->get('/tasks', $handler);
 
@@ -146,7 +146,7 @@ class RouterTest extends TestCase
     public function testMethodIsCaseInsensitive(): void
     {
         $router = new Router();
-        $handler = fn() => 'response';
+        $handler = fn () => 'response';
 
         $router->get('/test', $handler);
 
@@ -164,7 +164,7 @@ class RouterTest extends TestCase
     public function testFluentInterface(): void
     {
         $router = new Router();
-        $handler = fn() => 'response';
+        $handler = fn () => 'response';
 
         $result = $router
             ->get('/a', $handler)
@@ -183,8 +183,8 @@ class RouterTest extends TestCase
     public function testSpecificRouteBeforeParameterized(): void
     {
         $router = new Router();
-        $searchHandler = fn() => 'search';
-        $detailHandler = fn() => 'detail';
+        $searchHandler = fn () => 'search';
+        $detailHandler = fn () => 'detail';
 
         // Register specific route before parameterized route
         $router->get('/tasks/search', $searchHandler);
@@ -201,8 +201,8 @@ class RouterTest extends TestCase
     public function testParameterizedRouteMatchesNonSpecific(): void
     {
         $router = new Router();
-        $searchHandler = fn() => 'search';
-        $detailHandler = fn() => 'detail';
+        $searchHandler = fn () => 'search';
+        $detailHandler = fn () => 'detail';
 
         $router->get('/tasks/search', $searchHandler);
         $router->get('/tasks/{id}', $detailHandler);
@@ -221,8 +221,8 @@ class RouterTest extends TestCase
     public function testSamePatternDifferentMethods(): void
     {
         $router = new Router();
-        $getHandler = fn() => 'get tasks';
-        $postHandler = fn() => 'create task';
+        $getHandler = fn () => 'get tasks';
+        $postHandler = fn () => 'create task';
 
         $router->get('/tasks', $getHandler);
         $router->post('/tasks', $postHandler);

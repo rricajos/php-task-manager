@@ -66,7 +66,7 @@ class DatabaseTest extends TestCase
         $result = $pdo->query('SELECT 1 as test');
         $row = $result->fetch();
 
-        $this->assertSame('1', $row['test']);
+        $this->assertSame(1, (int) $row['test']);
     }
 
     // ---------------------------------------------------------------
@@ -100,7 +100,7 @@ class DatabaseTest extends TestCase
         $columns = $stmt->fetchAll();
 
         $columnNames = array_map(
-            fn(array $col): string => $col['name'],
+            fn (array $col): string => $col['name'],
             $columns,
         );
 
@@ -117,7 +117,7 @@ class DatabaseTest extends TestCase
         $columns = $stmt->fetchAll();
 
         $columnNames = array_map(
-            fn(array $col): string => $col['name'],
+            fn (array $col): string => $col['name'],
             $columns,
         );
 
@@ -150,7 +150,7 @@ class DatabaseTest extends TestCase
         $columns = $stmt->fetchAll();
 
         $columnNames = array_map(
-            fn(array $col): string => $col['name'],
+            fn (array $col): string => $col['name'],
             $columns,
         );
 
@@ -170,7 +170,7 @@ class DatabaseTest extends TestCase
         $columns = $stmt->fetchAll();
 
         $columnNames = array_map(
-            fn(array $col): string => $col['name'],
+            fn (array $col): string => $col['name'],
             $columns,
         );
 

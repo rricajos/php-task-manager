@@ -173,7 +173,9 @@ class Database
     /**
      * Prevenir clonacion del Singleton.
      */
-    private function __clone(): void {}
+    private function __clone(): void
+    {
+    }
 
     /**
      * Prevenir deserializacion del Singleton.

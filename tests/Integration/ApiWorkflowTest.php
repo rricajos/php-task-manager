@@ -215,7 +215,7 @@ class ApiWorkflowTest extends TestCase
         $this->assertCount(3, $resultado['tareas']);
         // The tasks are returned sorted by prioridad ASC
         $prioridades = array_map(
-            fn(Task $t): string => $t->prioridad->value,
+            fn (Task $t): string => $t->prioridad->value,
             $resultado['tareas'],
         );
 
