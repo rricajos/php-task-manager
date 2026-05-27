@@ -508,7 +508,7 @@ class TaskTest extends TestCase
 
     public function testFormatoLineaTareaVencidaMuestraIndicador(): void
     {
-        // Use a date far in the past to ensure it is always "vencida"
+        // Usar una fecha muy pasada para asegurar que siempre esta "vencida"
         $task = new Task(
             id: 1,
             titulo: 'Tarea vencida',
@@ -527,7 +527,7 @@ class TaskTest extends TestCase
 
     public function testFormatoLineaTareaCompletadaNoMuestraVencida(): void
     {
-        // A completed task should not show VENCIDA even if fecha_vencimiento is past
+        // Una tarea completada no debe mostrar VENCIDA aunque fecha_vencimiento sea pasada
         $task = new Task(
             id: 1,
             titulo: 'Tarea completada',

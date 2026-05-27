@@ -376,7 +376,7 @@ class ExportService
 
             throw new ValidationException(
                 message: "Formato de exportacion '{$formato}' no disponible. Formatos disponibles: {$disponibles}",
-                code: ValidationException::ERROR_CAMPO_VACIO,
+                code: ValidationException::ERROR_FORMATO_INVALIDO,
                 campo: 'formato',
             );
         }
@@ -405,7 +405,7 @@ class ExportService
 
             throw new ValidationException(
                 message: "Formato de exportacion '{$formato}' no disponible. Formatos disponibles: {$disponibles}",
-                code: ValidationException::ERROR_CAMPO_VACIO,
+                code: ValidationException::ERROR_FORMATO_INVALIDO,
                 campo: 'formato',
             );
         }

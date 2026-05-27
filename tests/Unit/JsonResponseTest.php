@@ -39,7 +39,7 @@ class JsonResponseTest extends TestCase
                 message: 'Operacion exitosa',
             );
         } catch (\RuntimeException) {
-            // Expected: exit disabled for testing
+            // Esperado: exit deshabilitado para testing
         }
 
         $output = ob_get_clean();
@@ -62,7 +62,7 @@ class JsonResponseTest extends TestCase
                 code: 404,
             );
         } catch (\RuntimeException) {
-            // Expected: exit disabled for testing
+            // Esperado: exit deshabilitado para testing
         }
 
         $output = ob_get_clean();
@@ -88,7 +88,7 @@ class JsonResponseTest extends TestCase
                 ],
             );
         } catch (\RuntimeException) {
-            // Expected: exit disabled for testing
+            // Esperado: exit deshabilitado para testing
         }
 
         $output = ob_get_clean();
@@ -116,7 +116,7 @@ class JsonResponseTest extends TestCase
                 ],
             );
         } catch (\RuntimeException) {
-            // Expected: exit disabled for testing
+            // Esperado: exit deshabilitado para testing
         }
 
         $output = ob_get_clean();
@@ -140,7 +140,7 @@ class JsonResponseTest extends TestCase
                 message: 'Recurso creado',
             );
         } catch (\RuntimeException) {
-            // Expected: exit disabled for testing
+            // Esperado: exit deshabilitado para testing
         }
 
         $output = ob_get_clean();
@@ -158,12 +158,12 @@ class JsonResponseTest extends TestCase
         try {
             JsonResponse::noContent();
         } catch (\RuntimeException) {
-            // Expected: exit disabled for testing
+            // Esperado: exit deshabilitado para testing
         }
 
         $output = ob_get_clean();
 
-        // 204 No Content should have empty body
+        // 204 No Content debe tener cuerpo vacio
         $this->assertSame('', $output);
     }
 }

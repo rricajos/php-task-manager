@@ -136,7 +136,7 @@ class RouterTest extends TestCase
 
         $router->get('/tasks', $handler);
 
-        // URI with trailing slash should match
+        // URI con barra final debe coincidir
         $match = $router->resolve('GET', '/tasks/');
 
         $this->assertInstanceOf(RouteMatch::class, $match);
@@ -150,7 +150,7 @@ class RouterTest extends TestCase
 
         $router->get('/test', $handler);
 
-        // Resolve with lowercase method
+        // Resolver con metodo en minusculas
         $match = $router->resolve('get', '/test');
 
         $this->assertInstanceOf(RouteMatch::class, $match);
@@ -186,15 +186,15 @@ class RouterTest extends TestCase
         $searchHandler = fn () => 'search';
         $detailHandler = fn () => 'detail';
 
-        // Register specific route before parameterized route
+        // Registrar ruta especifica antes de la ruta parametrizada
         $router->get('/tasks/search', $searchHandler);
         $router->get('/tasks/{id}', $detailHandler);
 
-        // /tasks/search should match the specific route, not the parameterized one
+        // /tasks/search debe coincidir con la ruta especifica, no la parametrizada
         $match = $router->resolve('GET', '/tasks/search');
 
         $this->assertSame($searchHandler, $match->handler);
-        // Should not have 'id' param since the specific route matched
+        // No debe tener parametro 'id' ya que coincidio la ruta especifica
         $this->assertArrayNotHasKey('id', $match->params);
     }
 
@@ -207,7 +207,7 @@ class RouterTest extends TestCase
         $router->get('/tasks/search', $searchHandler);
         $router->get('/tasks/{id}', $detailHandler);
 
-        // /tasks/42 should match the parameterized route
+        // /tasks/42 debe coincidir con la ruta parametrizada
         $match = $router->resolve('GET', '/tasks/42');
 
         $this->assertSame($detailHandler, $match->handler);
@@ -235,11 +235,11 @@ class RouterTest extends TestCase
     }
 
     // ---------------------------------------------------------------
-    //  Note: 404 and 405 tests
+    //  Nota: tests de 404 y 405
     // ---------------------------------------------------------------
-    // Router::resolve() calls JsonResponse::error() which calls exit() for
-    // non-matching routes (404) and method-not-allowed (405). These scenarios
-    // cannot be easily unit tested without @runInSeparateProcess which adds
-    // complexity. The 404/405 behavior is effectively tested via integration
-    // tests against the actual API.
+    // Router::resolve() llama a JsonResponse::error() que ejecuta exit() para
+    // rutas no encontradas (404) y metodos no permitidos (405). Estos escenarios
+    // no se pueden testear facilmente sin @runInSeparateProcess que agrega
+    // complejidad. El comportamiento de 404/405 se testea efectivamente mediante
+    // tests de integracion contra la API real.
 }

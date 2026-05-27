@@ -30,7 +30,12 @@ class AppException extends \RuntimeException
     }
 }
 
-// --- Excepcion para errores de validacion ---
+/**
+ * Excepcion para errores de validacion de datos de entrada.
+ *
+ * Incluye codigos de error especificos por tipo de validacion
+ * y el nombre del campo que fallo la validacion.
+ */
 class ValidationException extends AppException
 {
     /** Codigos de error de validacion */
@@ -56,7 +61,12 @@ class ValidationException extends AppException
     }
 }
 
-// --- Excepcion cuando un recurso no se encuentra ---
+/**
+ * Excepcion cuando un recurso no se encuentra en la base de datos.
+ *
+ * Almacena el tipo de recurso y su identificador para generar
+ * mensajes descriptivos automaticamente.
+ */
 class NotFoundException extends AppException
 {
     /** Codigos de error de recurso no encontrado */

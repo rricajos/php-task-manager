@@ -206,7 +206,7 @@ class AuthServiceTest extends TestCase
         $this->auth->registrar(username: 'firmauser', password: 'password123');
         $loginResult = $this->auth->login(username: 'firmauser', password: 'password123');
 
-        // Modify the signature part of the token
+        // Modificar la parte de firma del token
         $partes = explode('.', $loginResult['token']);
         $partes[2] = 'firma_invalida_modificada';
         $tokenModificado = implode('.', $partes);
@@ -219,8 +219,8 @@ class AuthServiceTest extends TestCase
 
     public function testValidarTokenExpirado(): void
     {
-        // Manually craft an expired token by creating the JWT structure
-        // with an expiration time in the past
+        // Construir manualmente un token expirado creando la estructura JWT
+        // con un tiempo de expiracion en el pasado
         $header = base64_encode(json_encode(['alg' => 'HS256', 'typ' => 'JWT']));
         $header = rtrim(strtr($header, '+/', '-_'), '=');
 
@@ -228,11 +228,11 @@ class AuthServiceTest extends TestCase
             'user_id' => 1,
             'username' => 'expired',
             'iat' => time() - 7200,
-            'exp' => time() - 3600, // Expired 1 hour ago
+            'exp' => time() - 3600, // Expirado hace 1 hora
         ]));
         $payload = rtrim(strtr($payload, '+/', '-_'), '=');
 
-        // Sign with the test secret key
+        // Firmar con la clave secreta de prueba
         $secret = 'test_secret_key_for_phpunit';
         $firma = hash_hmac('SHA256', "{$header}.{$payload}", $secret, true);
         $firmaB64 = rtrim(strtr(base64_encode($firma), '+/', '-_'), '=');

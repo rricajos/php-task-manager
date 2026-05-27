@@ -51,7 +51,7 @@ class DatabaseTest extends TestCase
         Database::resetInstance();
         $instance2 = Database::getInstance(':memory:');
 
-        // After reset, a new instance should be created (different object)
+        // Despues de resetear, se debe crear una nueva instancia (objeto diferente)
         $this->assertNotSame($instance1, $instance2);
     }
 
@@ -62,7 +62,7 @@ class DatabaseTest extends TestCase
 
         $pdo = $db->getConnection();
 
-        // The connection should work - verify by running a simple query
+        // La conexion debe funcionar - verificar con una consulta simple
         $result = $pdo->query('SELECT 1 as test');
         $row = $result->fetch();
 
@@ -79,12 +79,12 @@ class DatabaseTest extends TestCase
         $db = Database::getInstance(':memory:');
         $pdo = $db->getConnection();
 
-        // Check that users table exists
+        // Verificar que existe la tabla users
         $stmtUsers = $pdo->query('PRAGMA table_info(users)');
         $usersColumns = $stmtUsers->fetchAll();
         $this->assertNotEmpty($usersColumns, 'La tabla users debe existir');
 
-        // Check that tasks table exists
+        // Verificar que existe la tabla tasks
         $stmtTasks = $pdo->query('PRAGMA table_info(tasks)');
         $tasksColumns = $stmtTasks->fetchAll();
         $this->assertNotEmpty($tasksColumns, 'La tabla tasks debe existir');

@@ -135,13 +135,9 @@ class JsonResponse
      */
     private static function enviar(array $body, int $code): never
     {
-        // Establecer codigo de estado HTTP
         http_response_code($code);
-
-        // Establecer cabecera de tipo de contenido
         header('Content-Type: application/json; charset=utf-8');
 
-        // Codificar y enviar el JSON
         echo json_encode(
             value: $body,
             flags: JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR,

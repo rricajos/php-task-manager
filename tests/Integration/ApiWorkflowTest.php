@@ -38,7 +38,7 @@ class ApiWorkflowTest extends TestCase
 
         $this->auth = new AuthService();
 
-        // Register a default test user and create services with their userId
+        // Registrar un usuario de prueba por defecto y crear servicios con su userId
         $user = $this->auth->registrar(username: 'testuser', password: 'password123');
         $repository = new TaskRepository(userId: $user['id']);
         $this->taskService = new TaskService(repository: $repository);
@@ -75,7 +75,7 @@ class ApiWorkflowTest extends TestCase
         $this->assertIsInt($loginResult['expires_in']);
         $this->assertSame('newuser', $loginResult['user']['username']);
 
-        // Validate the token
+        // Validar el token
         $payload = $this->auth->validarToken($loginResult['token']);
         $this->assertSame($registered['id'], $payload['user_id']);
     }
@@ -86,30 +86,30 @@ class ApiWorkflowTest extends TestCase
 
     public function testUserIsolation(): void
     {
-        // Create tasks for user 1 (default test user from setUp)
+        // Crear tareas para el usuario 1 (usuario de prueba por defecto del setUp)
         $this->taskService->crearTarea('Tarea de user 1', '', 'alta');
         $this->taskService->crearTarea('Otra tarea de user 1', '', 'media');
 
         $user1Tasks = $this->taskService->listarTareas('todas');
         $this->assertCount(2, $user1Tasks);
 
-        // Create user 2 and their own TaskService
+        // Crear usuario 2 y su propio TaskService
         $user2 = $this->auth->registrar(username: 'user2', password: 'password456');
         $repo2 = new TaskRepository(userId: $user2['id']);
         $service2 = new TaskService(repository: $repo2);
 
-        // User 2 should see no tasks
+        // El usuario 2 no debe ver tareas
         $user2Tasks = $service2->listarTareas('todas');
         $this->assertCount(0, $user2Tasks);
 
-        // Create a task for user 2
+        // Crear una tarea para el usuario 2
         $service2->crearTarea('Tarea de user 2', '', 'baja');
 
-        // User 2 should see only their task
+        // El usuario 2 solo debe ver su tarea
         $user2Tasks = $service2->listarTareas('todas');
         $this->assertCount(1, $user2Tasks);
 
-        // User 1 should still see only their tasks
+        // El usuario 1 debe seguir viendo solo sus tareas
         $user1Tasks = $this->taskService->listarTareas('todas');
         $this->assertCount(2, $user1Tasks);
     }
@@ -120,7 +120,7 @@ class ApiWorkflowTest extends TestCase
 
     public function testFullCrudWithEditing(): void
     {
-        // 1. CREATE
+        // 1. CREAR
         $tarea = $this->taskService->crearTarea(
             titulo: 'Tarea CRUD',
             descripcion: 'Descripcion original',
@@ -131,12 +131,12 @@ class ApiWorkflowTest extends TestCase
         $this->assertSame('Tarea CRUD', $tarea->titulo);
         $this->assertSame(Status::Pendiente, $tarea->estado);
 
-        // 2. READ
+        // 2. LEER
         $obtenida = $this->taskService->obtenerTarea($tarea->id);
         $this->assertSame($tarea->id, $obtenida->id);
         $this->assertSame('Tarea CRUD', $obtenida->titulo);
 
-        // 3. UPDATE
+        // 3. ACTUALIZAR
         $actualizada = $this->taskService->actualizarTarea(
             id: $tarea->id,
             titulo: 'Tarea CRUD Editada',
@@ -146,12 +146,12 @@ class ApiWorkflowTest extends TestCase
         $this->assertSame(Priority::Alta, $actualizada->prioridad);
         $this->assertSame('Descripcion original', $actualizada->descripcion);
 
-        // 4. COMPLETE
+        // 4. COMPLETAR
         $completada = $this->taskService->completarTarea($tarea->id);
         $this->assertSame(Status::Completada, $completada->estado);
         $this->assertNotNull($completada->fechaCompletada);
 
-        // 5. DELETE
+        // 5. ELIMINAR
         $eliminada = $this->taskService->eliminarTarea($tarea->id);
         $this->assertTrue($eliminada);
 
@@ -165,12 +165,12 @@ class ApiWorkflowTest extends TestCase
 
     public function testPaginatedListing(): void
     {
-        // Create 25 tasks
+        // Crear 25 tareas
         for ($i = 1; $i <= 25; $i++) {
             $this->taskService->crearTarea("Tarea {$i}", '', 'media');
         }
 
-        // Page 1 with default 20 per page
+        // Pagina 1 con 20 por pagina por defecto
         $page1 = $this->taskService->listarTareas(
             filtro: 'todas',
             page: 1,
@@ -183,7 +183,7 @@ class ApiWorkflowTest extends TestCase
         $this->assertSame(2, $page1['total_pages']);
         $this->assertCount(20, $page1['tareas']);
 
-        // Page 2 should have remaining 5
+        // Pagina 2 debe tener las 5 restantes
         $page2 = $this->taskService->listarTareas(
             filtro: 'todas',
             page: 2,
@@ -213,13 +213,13 @@ class ApiWorkflowTest extends TestCase
         );
 
         $this->assertCount(3, $resultado['tareas']);
-        // The tasks are returned sorted by prioridad ASC
+        // Las tareas se retornan ordenadas por prioridad ASC
         $prioridades = array_map(
             fn (Task $t): string => $t->prioridad->value,
             $resultado['tareas'],
         );
 
-        // Just verify all 3 priorities are present
+        // Verificar que las 3 prioridades estan presentes
         $this->assertContains('alta', $prioridades);
         $this->assertContains('media', $prioridades);
         $this->assertContains('baja', $prioridades);
@@ -292,7 +292,7 @@ class ApiWorkflowTest extends TestCase
 
     public function testDueDateWorkflow(): void
     {
-        // Create task with due date
+        // Crear tarea con fecha de vencimiento
         $tarea = $this->taskService->crearTarea(
             titulo: 'Tarea con deadline',
             descripcion: 'Importante',
@@ -302,7 +302,7 @@ class ApiWorkflowTest extends TestCase
 
         $this->assertSame('2026-12-31', $tarea->fechaVencimiento);
 
-        // Update due date
+        // Actualizar fecha de vencimiento
         $actualizada = $this->taskService->actualizarTarea(
             id: $tarea->id,
             fechaVencimiento: '2027-01-15',
@@ -310,7 +310,7 @@ class ApiWorkflowTest extends TestCase
 
         $this->assertSame('2027-01-15', $actualizada->fechaVencimiento);
 
-        // Verify persisted
+        // Verificar persistencia
         $obtenida = $this->taskService->obtenerTarea($tarea->id);
         $this->assertSame('2027-01-15', $obtenida->fechaVencimiento);
     }
@@ -336,7 +336,7 @@ class ApiWorkflowTest extends TestCase
         $this->assertSame(2, $data['total_tareas']);
         $this->assertCount(2, $data['tareas']);
 
-        // Verify task structure in export
+        // Verificar estructura de la tarea en exportacion
         $primeraTarea = $data['tareas'][0];
         $this->assertArrayHasKey('id', $primeraTarea);
         $this->assertArrayHasKey('titulo', $primeraTarea);
@@ -352,19 +352,19 @@ class ApiWorkflowTest extends TestCase
         $tareas = $this->taskService->obtenerTodasParaExportar();
         $csvString = $this->exportService->exportarComoString($tareas, 'csv');
 
-        // Remove BOM if present
+        // Eliminar BOM si esta presente
         $csvSinBom = ltrim($csvString, "\xEF\xBB\xBF");
 
-        // Verify CSV headers
+        // Verificar cabeceras CSV
         $this->assertStringContainsString('ID', $csvSinBom);
         $this->assertStringContainsString('Titulo', $csvSinBom);
         $this->assertStringContainsString('Prioridad', $csvSinBom);
 
-        // Verify data is present
+        // Verificar que los datos estan presentes
         $this->assertStringContainsString('CSV tarea 1', $csvSinBom);
         $this->assertStringContainsString('CSV tarea 2', $csvSinBom);
 
-        // Verify correct number of lines (header + 2 data rows)
+        // Verificar numero correcto de lineas (cabecera + 2 filas de datos)
         $lineas = explode("\n", trim($csvSinBom));
         $this->assertCount(3, $lineas);
     }
@@ -375,17 +375,17 @@ class ApiWorkflowTest extends TestCase
 
     public function testStatisticsAfterOperations(): void
     {
-        // Create tasks
+        // Crear tareas
         $this->taskService->crearTarea('Alta 1', '', 'alta');
         $this->taskService->crearTarea('Alta 2', '', 'alta');
         $this->taskService->crearTarea('Media 1', '', 'media');
         $this->taskService->crearTarea('Baja 1', '', 'baja');
 
-        // Complete some
+        // Completar algunas
         $this->taskService->completarTarea(1);
         $this->taskService->completarTarea(3);
 
-        // Delete one
+        // Eliminar una
         $this->taskService->eliminarTarea(2);
 
         $stats = $this->taskService->obtenerEstadisticas();
@@ -425,16 +425,16 @@ class ApiWorkflowTest extends TestCase
             fechaVencimiento: '2026-12-31',
         );
 
-        // Update only priority
+        // Actualizar solo la prioridad
         $actualizada = $this->taskService->actualizarTarea(
             id: $tarea->id,
             prioridad: 'alta',
         );
 
-        // Priority changed
+        // La prioridad cambio
         $this->assertSame(Priority::Alta, $actualizada->prioridad);
 
-        // Other fields unchanged
+        // Los demas campos no cambian
         $this->assertSame('Titulo original', $actualizada->titulo);
         $this->assertSame('Desc original', $actualizada->descripcion);
         $this->assertSame('2026-12-31', $actualizada->fechaVencimiento);
@@ -447,7 +447,7 @@ class ApiWorkflowTest extends TestCase
         $this->taskService->crearTarea('Tarea 3', '', 'baja');
         $this->taskService->crearTarea('Tarea 4', '', 'alta');
 
-        // Complete 2 out of 4
+        // Completar 2 de 4
         $this->taskService->completarTarea(1);
         $this->taskService->completarTarea(3);
 
@@ -457,7 +457,7 @@ class ApiWorkflowTest extends TestCase
         $this->assertSame(2, $stats['completadas']);
         $this->assertSame(2, $stats['pendientes']);
 
-        // Verify percentage would be 50%
+        // Verificar que el porcentaje seria 50%
         $porcentaje = round(($stats['completadas'] / $stats['total']) * 100, 1);
         $this->assertSame(50.0, $porcentaje);
     }

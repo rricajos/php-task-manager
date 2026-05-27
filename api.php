@@ -6,7 +6,7 @@ declare(strict_types=1);
  * API REST del Gestor de Tareas - Punto de entrada.
  *
  * Servidor HTTP para la API REST que expone los endpoints de
- * autenticacion y gestion de tareas. Diseñado para usarse con
+ * autenticacion y gestion de tareas. Disenado para usarse con
  * el servidor integrado de PHP:
  *
  *   php -S localhost:8080 api.php

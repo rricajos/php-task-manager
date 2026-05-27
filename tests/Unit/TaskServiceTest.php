@@ -626,7 +626,7 @@ class TaskServiceTest extends TestCase
             fechaVencimiento: '2026-12-25',
         );
 
-        // Sending empty string should clear the due date
+        // Enviar cadena vacia debe limpiar la fecha de vencimiento
         $actualizada = $this->service->actualizarTarea(
             id: $creada->id,
             fechaVencimiento: '',
@@ -681,11 +681,11 @@ class TaskServiceTest extends TestCase
         $this->service->crearTarea('Tarea 1', '', 'alta');
         $this->service->crearTarea('Tarea 2', '', 'media');
 
-        // page=0 returns simple array (backward compat)
+        // page=0 retorna array simple (compatibilidad)
         $resultado = $this->service->listarTareas(filtro: 'todas', page: 0);
 
         $this->assertIsArray($resultado);
-        // Simple array, not paginated structure
+        // Array simple, no estructura paginada
         $this->assertArrayNotHasKey('tareas', $resultado);
         $this->assertCount(2, $resultado);
     }

@@ -93,9 +93,6 @@ class TaskRepository
             }
 
             return Task::fromRow($row);
-        } catch (NotFoundException $e) {
-            // Re-lanzar NotFoundException tal cual
-            throw $e;
         } catch (PDOException $e) {
             throw new AppException(
                 message: "Error al buscar tarea #{$id}: {$e->getMessage()}",
@@ -388,8 +385,6 @@ class TaskRepository
             $stmt->execute($params);
 
             return $this->findById($id);
-        } catch (NotFoundException $e) {
-            throw $e;
         } catch (PDOException $e) {
             throw new AppException(
                 message: "Error al actualizar tarea #{$id}: {$e->getMessage()}",
@@ -426,8 +421,6 @@ class TaskRepository
             ]);
 
             return $this->findById($id);
-        } catch (NotFoundException $e) {
-            throw $e;
         } catch (PDOException $e) {
             throw new AppException(
                 message: "Error al completar tarea #{$id}: {$e->getMessage()}",
@@ -460,8 +453,6 @@ class TaskRepository
             ]);
 
             return $stmt->rowCount() > 0;
-        } catch (NotFoundException $e) {
-            throw $e;
         } catch (PDOException $e) {
             throw new AppException(
                 message: "Error al eliminar tarea #{$id}: {$e->getMessage()}",

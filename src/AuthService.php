@@ -216,9 +216,6 @@ class AuthService
                     'username' => $user['username'],
                 ],
             ];
-        } catch (AppException $e) {
-            // Re-lanzar excepciones propias
-            throw $e;
         } catch (PDOException $e) {
             throw new AppException(
                 message: "Error al autenticar usuario: {$e->getMessage()}",

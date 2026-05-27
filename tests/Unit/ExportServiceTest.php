@@ -423,7 +423,7 @@ class ExportServiceTest extends TestCase
 
         $exporter->exportToString($this->tareasEjemplo);
 
-        // exportToString should not create the directory
+        // exportToString no debe crear el directorio
         $this->assertDirectoryDoesNotExist($subDir);
     }
 
@@ -437,7 +437,7 @@ class ExportServiceTest extends TestCase
 
         $contenido = $exporter->exportToString($this->tareasEjemplo);
 
-        // Remove BOM if present
+        // Eliminar BOM si esta presente
         $contenidoSinBom = ltrim($contenido, "\xEF\xBB\xBF");
 
         $this->assertStringContainsString('ID', $contenidoSinBom);
@@ -455,10 +455,10 @@ class ExportServiceTest extends TestCase
         $contenidoSinBom = ltrim($contenido, "\xEF\xBB\xBF");
         $lineas = explode("\n", trim($contenidoSinBom));
 
-        // 1 header + 3 data rows
+        // 1 cabecera + 3 filas de datos
         $this->assertCount(4, $lineas);
 
-        // Verify first data row contains task data
+        // Verificar que la primera fila contiene datos de la tarea
         $this->assertStringContainsString('Comprar leche', $contenidoSinBom);
     }
 
@@ -470,7 +470,7 @@ class ExportServiceTest extends TestCase
         $contenidoSinBom = ltrim($contenido, "\xEF\xBB\xBF");
         $lineas = explode("\n", trim($contenidoSinBom));
 
-        // Only headers
+        // Solo encabezados
         $this->assertCount(1, $lineas);
     }
 

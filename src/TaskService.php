@@ -138,7 +138,7 @@ class TaskService
             if (mb_strlen($titulo) > 100) {
                 throw new ValidationException(
                     message: 'El titulo no puede superar los 100 caracteres',
-                    code: ValidationException::ERROR_CAMPO_VACIO,
+                    code: ValidationException::ERROR_LONGITUD_INVALIDA,
                     campo: 'titulo',
                 );
             }
