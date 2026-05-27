@@ -10,20 +10,24 @@ use PHPUnit\Framework\TestCase;
 /**
  * Tests unitarios para JsonResponse.
  *
- * Todos los metodos de JsonResponse llaman exit() (return type: never),
- * por lo que cada test debe ejecutarse en un proceso separado para
- * evitar que exit() termine el runner de PHPUnit.
+ * Usa JsonResponse::enableExit(false) para que en lugar de exit()
+ * se lance una RuntimeException, permitiendo capturar la salida
+ * sin necesidad de procesos separados.
  *
  * @covers \MiniProject\JsonResponse
- * @runInSeparateProcess
- * @preserveGlobalState disabled
  */
 class JsonResponseTest extends TestCase
 {
-    /**
-     * @runInSeparateProcess
-     * @preserveGlobalState disabled
-     */
+    protected function setUp(): void
+    {
+        JsonResponse::enableExit(false);
+    }
+
+    protected function tearDown(): void
+    {
+        JsonResponse::enableExit(true);
+    }
+
     public function testSuccessResponse(): void
     {
         ob_start();
@@ -34,21 +38,11 @@ class JsonResponseTest extends TestCase
                 code: 200,
                 message: 'Operacion exitosa',
             );
-        } catch (\Throwable) {
-            // exit() may throw in some configurations
+        } catch (\RuntimeException) {
+            // Expected: exit disabled for testing
         }
 
         $output = ob_get_clean();
-
-        // If exit() terminated the process before we could capture,
-        // the output might be empty in some PHPUnit configurations.
-        // In that case, we skip the assertions.
-        if ($output === false || $output === '') {
-            $this->markTestSkipped(
-                'No se pudo capturar la salida de JsonResponse::success() - exit() termino el proceso'
-            );
-        }
-
         $data = json_decode($output, true);
 
         $this->assertNotNull($data, 'La respuesta debe ser JSON valido');
@@ -58,10 +52,6 @@ class JsonResponseTest extends TestCase
         $this->assertSame(1, $data['data']['id']);
     }
 
-    /**
-     * @runInSeparateProcess
-     * @preserveGlobalState disabled
-     */
     public function testErrorResponse(): void
     {
         ob_start();
@@ -71,18 +61,11 @@ class JsonResponseTest extends TestCase
                 message: 'Recurso no encontrado',
                 code: 404,
             );
-        } catch (\Throwable) {
-            // exit() may throw
+        } catch (\RuntimeException) {
+            // Expected: exit disabled for testing
         }
 
         $output = ob_get_clean();
-
-        if ($output === false || $output === '') {
-            $this->markTestSkipped(
-                'No se pudo capturar la salida de JsonResponse::error() - exit() termino el proceso'
-            );
-        }
-
         $data = json_decode($output, true);
 
         $this->assertNotNull($data, 'La respuesta debe ser JSON valido');
@@ -90,10 +73,6 @@ class JsonResponseTest extends TestCase
         $this->assertSame('Recurso no encontrado', $data['message']);
     }
 
-    /**
-     * @runInSeparateProcess
-     * @preserveGlobalState disabled
-     */
     public function testPaginatedResponse(): void
     {
         ob_start();
@@ -108,18 +87,11 @@ class JsonResponseTest extends TestCase
                     'total_pages' => 1,
                 ],
             );
-        } catch (\Throwable) {
-            // exit() may throw
+        } catch (\RuntimeException) {
+            // Expected: exit disabled for testing
         }
 
         $output = ob_get_clean();
-
-        if ($output === false || $output === '') {
-            $this->markTestSkipped(
-                'No se pudo capturar la salida de JsonResponse::paginated() - exit() termino el proceso'
-            );
-        }
-
         $data = json_decode($output, true);
 
         $this->assertNotNull($data, 'La respuesta debe ser JSON valido');
@@ -130,10 +102,6 @@ class JsonResponseTest extends TestCase
         $this->assertSame(1, $data['pagination']['page']);
     }
 
-    /**
-     * @runInSeparateProcess
-     * @preserveGlobalState disabled
-     */
     public function testErrorWithDetails(): void
     {
         ob_start();
@@ -147,18 +115,11 @@ class JsonResponseTest extends TestCase
                     'prioridad' => 'Prioridad invalida',
                 ],
             );
-        } catch (\Throwable) {
-            // exit() may throw
+        } catch (\RuntimeException) {
+            // Expected: exit disabled for testing
         }
 
         $output = ob_get_clean();
-
-        if ($output === false || $output === '') {
-            $this->markTestSkipped(
-                'No se pudo capturar la salida de JsonResponse::error() - exit() termino el proceso'
-            );
-        }
-
         $data = json_decode($output, true);
 
         $this->assertNotNull($data, 'La respuesta debe ser JSON valido');
@@ -168,10 +129,6 @@ class JsonResponseTest extends TestCase
         $this->assertArrayHasKey('prioridad', $data['errors']);
     }
 
-    /**
-     * @runInSeparateProcess
-     * @preserveGlobalState disabled
-     */
     public function testSuccessWithCustomStatusCode(): void
     {
         ob_start();
@@ -182,18 +139,11 @@ class JsonResponseTest extends TestCase
                 code: 201,
                 message: 'Recurso creado',
             );
-        } catch (\Throwable) {
-            // exit() may throw
+        } catch (\RuntimeException) {
+            // Expected: exit disabled for testing
         }
 
         $output = ob_get_clean();
-
-        if ($output === false || $output === '') {
-            $this->markTestSkipped(
-                'No se pudo capturar la salida de JsonResponse::success() - exit() termino el proceso'
-            );
-        }
-
         $data = json_decode($output, true);
 
         $this->assertNotNull($data, 'La respuesta debe ser JSON valido');
@@ -201,27 +151,17 @@ class JsonResponseTest extends TestCase
         $this->assertSame('Recurso creado', $data['message']);
     }
 
-    /**
-     * @runInSeparateProcess
-     * @preserveGlobalState disabled
-     */
     public function testNoContentResponse(): void
     {
         ob_start();
 
         try {
             JsonResponse::noContent();
-        } catch (\Throwable) {
-            // exit() may throw
+        } catch (\RuntimeException) {
+            // Expected: exit disabled for testing
         }
 
         $output = ob_get_clean();
-
-        if ($output === false) {
-            $this->markTestSkipped(
-                'No se pudo capturar la salida de JsonResponse::noContent() - exit() termino el proceso'
-            );
-        }
 
         // 204 No Content should have empty body
         $this->assertSame('', $output);

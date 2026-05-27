@@ -15,6 +15,23 @@ namespace MiniProject;
 class JsonResponse
 {
     /**
+     * Controla si exit() se ejecuta al enviar respuestas.
+     * En modo testing, se lanza una excepcion en lugar de exit()
+     * para permitir que PHPUnit capture la salida.
+     */
+    private static bool $exitEnabled = true;
+
+    /**
+     * Habilita o deshabilita la llamada a exit() al enviar respuestas.
+     *
+     * @param bool $enabled true para exit() normal, false para lanzar excepcion (testing)
+     */
+    public static function enableExit(bool $enabled = true): void
+    {
+        self::$exitEnabled = $enabled;
+    }
+
+    /**
      * Envia una respuesta JSON exitosa.
      *
      * @param mixed $data Datos a incluir en la respuesta
@@ -98,7 +115,12 @@ class JsonResponse
     public static function noContent(): never
     {
         http_response_code(204);
-        exit;
+
+        if (self::$exitEnabled) {
+            exit;
+        }
+
+        throw new \RuntimeException('JsonResponse: exit disabled for testing');
     }
 
     /**
@@ -125,6 +147,10 @@ class JsonResponse
             flags: JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR,
         );
 
-        exit;
+        if (self::$exitEnabled) {
+            exit;
+        }
+
+        throw new \RuntimeException('JsonResponse: exit disabled for testing');
     }
 }
