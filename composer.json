@@ -40,6 +40,7 @@
         "cs-check": "php-cs-fixer fix --dry-run --diff",
         "cs-fix": "php-cs-fixer fix",
         "start:cli": "php app.php",
+        "coverage": "phpunit --coverage-clover coverage.xml --coverage-text",
         "start:api": "php -S localhost:8080 api.php"
     },
     "config": {

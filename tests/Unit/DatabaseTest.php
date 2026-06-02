@@ -10,6 +10,7 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * Tests unitarios para la clase Database (Singleton con SQLite).
+ * Unit tests for the Database class (Singleton with SQLite).
  *
  * @covers \MiniProject\Database
  */
@@ -107,7 +108,7 @@ class DatabaseTest extends TestCase
         $this->assertContains('user_id', $columnNames);
     }
 
-    public function testTasksTableHasFechaVencimientoColumn(): void
+    public function testTasksTableHasDueDateColumn(): void
     {
         Database::resetInstance();
         $db = Database::getInstance(':memory:');
@@ -121,7 +122,7 @@ class DatabaseTest extends TestCase
             $columns,
         );
 
-        $this->assertContains('fecha_vencimiento', $columnNames);
+        $this->assertContains('due_date', $columnNames);
     }
 
     public function testForeignKeysEnabled(): void
@@ -177,17 +178,135 @@ class DatabaseTest extends TestCase
         $expectedColumns = [
             'id',
             'user_id',
-            'titulo',
-            'descripcion',
-            'prioridad',
-            'estado',
-            'fecha_creacion',
-            'fecha_completada',
-            'fecha_vencimiento',
+            'title',
+            'description',
+            'priority',
+            'status',
+            'created_at',
+            'completed_at',
+            'due_date',
         ];
 
         foreach ($expectedColumns as $expected) {
             $this->assertContains($expected, $columnNames, "La columna '{$expected}' debe existir en tasks");
         }
+    }
+
+    public function testTagsTableExists(): void
+    {
+        Database::resetInstance();
+        $db = Database::getInstance(':memory:');
+        $pdo = $db->getConnection();
+
+        $stmt = $pdo->query(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='tags'"
+        );
+        $result = $stmt->fetch();
+
+        $this->assertNotFalse($result);
+        $this->assertSame('tags', $result['name']);
+    }
+
+    public function testTagsTableHasExpectedColumns(): void
+    {
+        Database::resetInstance();
+        $db = Database::getInstance(':memory:');
+        $pdo = $db->getConnection();
+
+        $stmt = $pdo->query('PRAGMA table_info(tags)');
+        $columns = $stmt->fetchAll();
+
+        $columnNames = array_map(
+            fn (array $col): string => $col['name'],
+            $columns,
+        );
+
+        $this->assertContains('id', $columnNames);
+        $this->assertContains('user_id', $columnNames);
+        $this->assertContains('name', $columnNames);
+        $this->assertContains('color', $columnNames);
+        $this->assertContains('created_at', $columnNames);
+    }
+
+    public function testTaskTagsTableExists(): void
+    {
+        Database::resetInstance();
+        $db = Database::getInstance(':memory:');
+        $pdo = $db->getConnection();
+
+        $stmt = $pdo->query(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='task_tags'"
+        );
+        $result = $stmt->fetch();
+
+        $this->assertNotFalse($result);
+        $this->assertSame('task_tags', $result['name']);
+    }
+
+    public function testRateLimitsTableExists(): void
+    {
+        Database::resetInstance();
+        $db = Database::getInstance(':memory:');
+        $pdo = $db->getConnection();
+
+        $stmt = $pdo->query(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='rate_limits'"
+        );
+        $result = $stmt->fetch();
+
+        $this->assertNotFalse($result);
+        $this->assertSame('rate_limits', $result['name']);
+    }
+
+    public function testRateLimitsTableHasExpectedColumns(): void
+    {
+        Database::resetInstance();
+        $db = Database::getInstance(':memory:');
+        $pdo = $db->getConnection();
+
+        $stmt = $pdo->query('PRAGMA table_info(rate_limits)');
+        $columns = $stmt->fetchAll();
+
+        $columnNames = array_map(
+            fn (array $col): string => $col['name'],
+            $columns,
+        );
+
+        $this->assertContains('id', $columnNames);
+        $this->assertContains('rate_key', $columnNames);
+        $this->assertContains('timestamp', $columnNames);
+    }
+
+    public function testCascadeDeleteRemovesTasksWhenUserDeleted(): void
+    {
+        Database::resetInstance();
+        Database::getInstance(':memory:');
+
+        $pdo = Database::getInstance()->getConnection();
+
+        // Create a user
+        $pdo->exec("INSERT INTO users (username, password_hash) VALUES ('cascade_user', 'hash')");
+        $userId = (int) $pdo->lastInsertId();
+
+        // Create tasks for that user
+        $stmt = $pdo->prepare(
+            "INSERT INTO tasks (user_id, title, priority, status) VALUES (:uid, 'Test Task', 'medium', 'pending')",
+        );
+        $stmt->execute([':uid' => $userId]);
+        $stmt->execute([':uid' => $userId]);
+
+        // Verify tasks exist
+        $countStmt = $pdo->prepare('SELECT COUNT(*) FROM tasks WHERE user_id = :uid');
+        $countStmt->execute([':uid' => $userId]);
+        $this->assertSame(2, (int) $countStmt->fetchColumn());
+
+        // Delete user — should cascade to tasks
+        $pdo->prepare('DELETE FROM users WHERE id = :uid')->execute([':uid' => $userId]);
+
+        // Tasks should be gone
+        $countStmt->execute([':uid' => $userId]);
+        $this->assertSame(0, (int) $countStmt->fetchColumn());
+
+        Database::resetInstance();
     }
 }

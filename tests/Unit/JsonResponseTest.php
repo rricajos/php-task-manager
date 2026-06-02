@@ -9,10 +9,7 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * Tests unitarios para JsonResponse.
- *
- * Usa JsonResponse::enableExit(false) para que en lugar de exit()
- * se lance una RuntimeException, permitiendo capturar la salida
- * sin necesidad de procesos separados.
+ * Unit tests for JsonResponse.
  *
  * @covers \MiniProject\JsonResponse
  */
@@ -34,7 +31,7 @@ class JsonResponseTest extends TestCase
 
         try {
             JsonResponse::success(
-                data: ['id' => 1, 'titulo' => 'Test'],
+                data: ['id' => 1, 'title' => 'Test'],
                 code: 200,
                 message: 'Operacion exitosa',
             );
@@ -111,8 +108,8 @@ class JsonResponseTest extends TestCase
                 message: 'Validacion fallida',
                 code: 422,
                 errors: [
-                    'titulo' => 'El titulo es obligatorio',
-                    'prioridad' => 'Prioridad invalida',
+                    'title' => 'Title is required',
+                    'priority' => 'Invalid priority',
                 ],
             );
         } catch (\RuntimeException) {
@@ -125,8 +122,8 @@ class JsonResponseTest extends TestCase
         $this->assertNotNull($data, 'La respuesta debe ser JSON valido');
         $this->assertFalse($data['success']);
         $this->assertArrayHasKey('errors', $data);
-        $this->assertArrayHasKey('titulo', $data['errors']);
-        $this->assertArrayHasKey('prioridad', $data['errors']);
+        $this->assertArrayHasKey('title', $data['errors']);
+        $this->assertArrayHasKey('priority', $data['errors']);
     }
 
     public function testSuccessWithCustomStatusCode(): void

@@ -4,17 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use MiniProject\JsonResponse;
 use MiniProject\RouteMatch;
 use MiniProject\Router;
 use PHPUnit\Framework\TestCase;
 
 /**
  * Tests unitarios para el enrutador de la API REST.
- *
- * Nota: Los metodos resolve() para rutas no encontradas (404) y metodos
- * no permitidos (405) llaman a JsonResponse::error() que ejecuta exit().
- * Estos escenarios no se pueden testear facilmente en proceso normal.
- * Se testean solo las rutas que resuelven correctamente.
+ * Unit tests for the REST API router.
  *
  * @covers \MiniProject\Router
  * @covers \MiniProject\Route
@@ -22,6 +19,16 @@ use PHPUnit\Framework\TestCase;
  */
 class RouterTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        JsonResponse::enableExit(false);
+    }
+
+    protected function tearDown(): void
+    {
+        JsonResponse::enableExit(true);
+    }
+
     // ---------------------------------------------------------------
     //  Tests de registro y resolucion de rutas por metodo HTTP
     // ---------------------------------------------------------------
@@ -235,11 +242,51 @@ class RouterTest extends TestCase
     }
 
     // ---------------------------------------------------------------
-    //  Nota: tests de 404 y 405
+    //  Tests de 404 y 405
     // ---------------------------------------------------------------
-    // Router::resolve() llama a JsonResponse::error() que ejecuta exit() para
-    // rutas no encontradas (404) y metodos no permitidos (405). Estos escenarios
-    // no se pueden testear facilmente sin @runInSeparateProcess que agrega
-    // complejidad. El comportamiento de 404/405 se testea efectivamente mediante
-    // tests de integracion contra la API real.
+
+    public function testResolveNotFoundRoute(): void
+    {
+        $router = new Router();
+        $router->get('/tasks', fn () => 'tasks');
+
+        ob_start();
+
+        try {
+            $router->resolve('GET', '/nonexistent');
+            $this->fail('Should have thrown RuntimeException for 404');
+        } catch (\RuntimeException) {
+            // Expected: JsonResponse::error throws when exit disabled
+        }
+
+        $output = ob_get_clean();
+        $data = json_decode($output, true);
+
+        $this->assertNotNull($data);
+        $this->assertFalse($data['success']);
+        $this->assertStringContainsString('Route not found', $data['message']);
+    }
+
+    public function testResolveMethodNotAllowed(): void
+    {
+        $router = new Router();
+        $router->get('/tasks', fn () => 'tasks list');
+        $router->post('/tasks', fn () => 'create task');
+
+        ob_start();
+
+        try {
+            $router->resolve('DELETE', '/tasks');
+            $this->fail('Should have thrown RuntimeException for 405');
+        } catch (\RuntimeException) {
+            // Expected
+        }
+
+        $output = ob_get_clean();
+        $data = json_decode($output, true);
+
+        $this->assertNotNull($data);
+        $this->assertFalse($data['success']);
+        $this->assertStringContainsString('not allowed', $data['message']);
+    }
 }

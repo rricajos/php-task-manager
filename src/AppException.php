@@ -5,18 +5,24 @@ declare(strict_types=1);
 namespace MiniProject;
 
 /**
- * Jerarquia de excepciones personalizadas para la aplicacion.
+ * Jerarquía de excepciones personalizadas para la aplicación.
+ * Custom exception hierarchy for the application.
  *
- * Proporciona excepciones especificas para distintos tipos de errores:
- * - AppException: excepcion base de la aplicacion
- * - ValidationException: errores de validacion de datos de entrada
+ * Proporciona excepciones específicas para distintos tipos de errores:
+ * - AppException: excepción base de la aplicación
+ * - ValidationException: errores de validación de datos de entrada
  * - NotFoundException: recurso no encontrado
+ *
+ * Provides specific exceptions for different error types:
+ * - AppException: base application exception
+ * - ValidationException: input data validation errors
+ * - NotFoundException: resource not found
  */
 
-// --- Excepcion base de la aplicacion ---
+// --- Base application exception / Excepción base de la aplicación ---
 class AppException extends \RuntimeException
 {
-    /** Codigos de error generales de la aplicacion */
+    /** Códigos de error generales / General error codes */
     public const ERROR_GENERAL = 1000;
     public const ERROR_DATABASE = 1001;
     public const ERROR_FILESYSTEM = 1002;
@@ -31,30 +37,34 @@ class AppException extends \RuntimeException
 }
 
 /**
- * Excepcion para errores de validacion de datos de entrada.
+ * Excepción para errores de validación de datos de entrada.
+ * Exception for input data validation errors.
  *
- * Incluye codigos de error especificos por tipo de validacion
- * y el nombre del campo que fallo la validacion.
+ * Incluye códigos de error específicos por tipo de validación
+ * y el nombre del campo que falló la validación.
+ *
+ * Includes specific error codes per validation type
+ * and the name of the field that failed validation.
  */
 class ValidationException extends AppException
 {
-    /** Codigos de error de validacion */
-    public const ERROR_CAMPO_VACIO = 2000;
-    public const ERROR_PRIORIDAD_INVALIDA = 2001;
-    public const ERROR_ESTADO_INVALIDO = 2002;
-    public const ERROR_ID_INVALIDO = 2003;
-    public const ERROR_FORMATO_INVALIDO = 2004;
-    public const ERROR_LONGITUD_INVALIDA = 2005;
+    /** Códigos de error de validación / Validation error codes */
+    public const ERROR_EMPTY_FIELD = 2000;
+    public const ERROR_INVALID_PRIORITY = 2001;
+    public const ERROR_INVALID_STATUS = 2002;
+    public const ERROR_INVALID_ID = 2003;
+    public const ERROR_INVALID_FORMAT = 2004;
+    public const ERROR_INVALID_LENGTH = 2005;
 
     /**
-     * @param string $message Mensaje descriptivo del error de validacion
-     * @param int $code Codigo de error especifico
-     * @param string $campo Nombre del campo que fallo la validacion
+     * @param string $message Mensaje descriptivo del error / Descriptive error message
+     * @param int $code Código de error específico / Specific error code
+     * @param string $field Nombre del campo que falló / Name of the failed field
      */
     public function __construct(
         string $message,
-        int $code = self::ERROR_CAMPO_VACIO,
-        public readonly string $campo = '',
+        int $code = self::ERROR_EMPTY_FIELD,
+        public readonly string $field = '',
         ?\Throwable $previous = null,
     ) {
         parent::__construct($message, $code, $previous);
@@ -62,26 +72,30 @@ class ValidationException extends AppException
 }
 
 /**
- * Excepcion cuando un recurso no se encuentra en la base de datos.
+ * Excepción cuando un recurso no se encuentra en la base de datos.
+ * Exception when a resource is not found in the database.
  *
  * Almacena el tipo de recurso y su identificador para generar
- * mensajes descriptivos automaticamente.
+ * mensajes descriptivos automáticamente.
+ *
+ * Stores the resource type and identifier to automatically
+ * generate descriptive messages.
  */
 class NotFoundException extends AppException
 {
-    /** Codigos de error de recurso no encontrado */
-    public const ERROR_TAREA_NO_ENCONTRADA = 3000;
+    /** Código de error de recurso no encontrado / Resource not found error code */
+    public const ERROR_TASK_NOT_FOUND = 3000;
 
     /**
-     * @param string $recurso Tipo de recurso que no se encontro
-     * @param int|string $identificador Identificador del recurso buscado
+     * @param string $resource Tipo de recurso no encontrado / Type of resource not found
+     * @param int|string $identifier Identificador del recurso buscado / Searched resource identifier
      */
     public function __construct(
-        public readonly string $recurso,
-        public readonly int|string $identificador,
+        public readonly string $resource,
+        public readonly int|string $identifier,
         ?\Throwable $previous = null,
     ) {
-        $message = "No se encontro {$recurso} con identificador: {$identificador}";
-        parent::__construct($message, self::ERROR_TAREA_NO_ENCONTRADA, $previous);
+        $message = "{$resource} not found with identifier: {$identifier}";
+        parent::__construct($message, self::ERROR_TASK_NOT_FOUND, $previous);
     }
 }

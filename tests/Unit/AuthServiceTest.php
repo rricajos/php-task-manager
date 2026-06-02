@@ -12,7 +12,8 @@ use MiniProject\ValidationException;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Tests unitarios para el servicio de autenticacion.
+ * Tests unitarios para el servicio de autenticación.
+ * Unit tests for the authentication service.
  *
  * @covers \MiniProject\AuthService
  * @covers \MiniProject\Database
@@ -23,151 +24,149 @@ class AuthServiceTest extends TestCase
 
     protected function setUp(): void
     {
-        putenv('JWT_SECRET=test_secret_key_for_phpunit');
         Database::resetInstance();
         Database::getInstance(':memory:');
-        $this->auth = new AuthService();
+        $this->auth = new AuthService(jwtSecret: 'test_secret_key_for_phpunit');
     }
 
     protected function tearDown(): void
     {
         Database::resetInstance();
-        putenv('JWT_SECRET');
     }
 
     // ---------------------------------------------------------------
-    //  Tests de registrar()
+    //  Tests de register()
     // ---------------------------------------------------------------
 
-    public function testRegistrarUsuarioValido(): void
+    public function testRegisterValidUser(): void
     {
-        $resultado = $this->auth->registrar(
+        $result = $this->auth->register(
             username: 'testuser',
             password: 'password123',
         );
 
-        $this->assertIsArray($resultado);
-        $this->assertArrayHasKey('id', $resultado);
-        $this->assertArrayHasKey('username', $resultado);
-        $this->assertArrayHasKey('created_at', $resultado);
-        $this->assertSame('testuser', $resultado['username']);
-        $this->assertIsInt($resultado['id']);
-        $this->assertGreaterThan(0, $resultado['id']);
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('id', $result);
+        $this->assertArrayHasKey('username', $result);
+        $this->assertArrayHasKey('created_at', $result);
+        $this->assertSame('testuser', $result['username']);
+        $this->assertIsInt($result['id']);
+        $this->assertGreaterThan(0, $result['id']);
     }
 
-    public function testRegistrarUsernameVacio(): void
+    public function testRegisterEmptyUsername(): void
     {
         $this->expectException(ValidationException::class);
-        $this->expectExceptionMessage('no puede estar vacio');
+        $this->expectExceptionMessage('cannot be empty');
 
-        $this->auth->registrar(username: '', password: 'password123');
+        $this->auth->register(username: '', password: 'password123');
     }
 
-    public function testRegistrarUsernameMuyCorto(): void
+    public function testRegisterTooShortUsername(): void
     {
         $this->expectException(ValidationException::class);
-        $this->expectExceptionMessage('entre 3 y 50 caracteres');
+        $this->expectExceptionMessage('between 3 and 50 characters');
 
-        $this->auth->registrar(username: 'ab', password: 'password123');
+        $this->auth->register(username: 'ab', password: 'password123');
     }
 
-    public function testRegistrarUsernameMuyLargo(): void
+    public function testRegisterTooLongUsername(): void
     {
         $this->expectException(ValidationException::class);
-        $this->expectExceptionMessage('entre 3 y 50 caracteres');
+        $this->expectExceptionMessage('between 3 and 50 characters');
 
-        $usernameLargo = str_repeat('a', 51);
-        $this->auth->registrar(username: $usernameLargo, password: 'password123');
+        $longUsername = str_repeat('a', 51);
+        $this->auth->register(username: $longUsername, password: 'password123');
     }
 
-    public function testRegistrarUsernameCaracteresInvalidos(): void
+    public function testRegisterInvalidCharactersUsername(): void
     {
         try {
-            $this->auth->registrar(username: 'user@name!', password: 'password123');
-            $this->fail('Deberia haber lanzado ValidationException');
+            $this->auth->register(username: 'user@name!', password: 'password123');
+            $this->fail('Should have thrown ValidationException');
         } catch (ValidationException $e) {
-            $this->assertSame(ValidationException::ERROR_FORMATO_INVALIDO, $e->getCode());
-            $this->assertStringContainsString('letras, numeros y guiones bajos', $e->getMessage());
+            $this->assertSame(ValidationException::ERROR_INVALID_FORMAT, $e->getCode());
+            $this->assertStringContainsString('letters, numbers and underscores', $e->getMessage());
         }
     }
 
-    public function testRegistrarPasswordCorta(): void
+    public function testRegisterShortPassword(): void
     {
         try {
-            $this->auth->registrar(username: 'testuser', password: '12345');
-            $this->fail('Deberia haber lanzado ValidationException');
+            $this->auth->register(username: 'testuser', password: '12345');
+            $this->fail('Should have thrown ValidationException');
         } catch (ValidationException $e) {
-            $this->assertSame(ValidationException::ERROR_LONGITUD_INVALIDA, $e->getCode());
-            $this->assertStringContainsString('al menos 6 caracteres', $e->getMessage());
+            $this->assertSame(ValidationException::ERROR_INVALID_LENGTH, $e->getCode());
+            $this->assertStringContainsString('at least 6 characters', $e->getMessage());
         }
     }
 
-    public function testRegistrarUsernameDuplicado(): void
+    public function testRegisterDuplicateUsername(): void
     {
-        $this->auth->registrar(username: 'duplicado', password: 'password123');
+        $this->auth->register(username: 'duplicado', password: 'password123');
 
         $this->expectException(AppException::class);
-        $this->expectExceptionMessage('ya esta registrado');
+        $this->expectExceptionMessage('already registered');
 
-        $this->auth->registrar(username: 'duplicado', password: 'otrapassword');
+        $this->auth->register(username: 'duplicado', password: 'otrapassword');
     }
 
     // ---------------------------------------------------------------
     //  Tests de login()
     // ---------------------------------------------------------------
 
-    public function testLoginExitoso(): void
+    public function testLoginSuccessful(): void
     {
-        $this->auth->registrar(username: 'loginuser', password: 'secreto123');
+        $this->auth->register(username: 'loginuser', password: 'secreto123');
 
-        $resultado = $this->auth->login(username: 'loginuser', password: 'secreto123');
+        $result = $this->auth->login(username: 'loginuser', password: 'secreto123');
 
-        $this->assertIsArray($resultado);
-        $this->assertArrayHasKey('token', $resultado);
-        $this->assertArrayHasKey('type', $resultado);
-        $this->assertArrayHasKey('expires_in', $resultado);
-        $this->assertArrayHasKey('user', $resultado);
-        $this->assertSame('Bearer', $resultado['type']);
-        $this->assertIsString($resultado['token']);
-        $this->assertNotEmpty($resultado['token']);
-        $this->assertIsInt($resultado['expires_in']);
-        $this->assertSame('loginuser', $resultado['user']['username']);
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('token', $result);
+        $this->assertArrayHasKey('type', $result);
+        $this->assertArrayHasKey('expires_in', $result);
+        $this->assertArrayHasKey('user', $result);
+        $this->assertSame('Bearer', $result['type']);
+        $this->assertIsString($result['token']);
+        $this->assertNotEmpty($result['token']);
+        $this->assertIsInt($result['expires_in']);
+        $this->assertSame('loginuser', $result['user']['username']);
     }
 
-    public function testLoginUsernameInexistente(): void
+    public function testLoginNonExistentUsername(): void
     {
         $this->expectException(AppException::class);
-        $this->expectExceptionMessage('Credenciales invalidas');
+        $this->expectExceptionMessage('Invalid credentials');
 
         $this->auth->login(username: 'noexisto', password: 'password123');
     }
 
-    public function testLoginPasswordIncorrecto(): void
+    public function testLoginWrongPassword(): void
     {
-        $this->auth->registrar(username: 'userpass', password: 'correcta123');
+        $this->auth->register(username: 'userpass', password: 'correcta123');
 
         $this->expectException(AppException::class);
-        $this->expectExceptionMessage('Credenciales invalidas');
+        $this->expectExceptionMessage('Invalid credentials');
 
         $this->auth->login(username: 'userpass', password: 'incorrecta');
     }
 
-    public function testLoginCamposVacios(): void
+    public function testLoginEmptyFields(): void
     {
         $this->expectException(ValidationException::class);
-        $this->expectExceptionMessage('obligatorios');
+        $this->expectExceptionMessage('required');
 
         $this->auth->login(username: '', password: '');
     }
 
-    public function testLoginUsernameVacioPasswordLleno(): void
+    public function testLoginEmptyUsernameFilledPassword(): void
     {
         $this->expectException(ValidationException::class);
 
         $this->auth->login(username: '', password: 'password123');
     }
 
-    public function testLoginUsernameLlenoPasswordVacio(): void
+    public function testLoginFilledUsernameEmptyPassword(): void
     {
         $this->expectException(ValidationException::class);
 
@@ -175,15 +174,15 @@ class AuthServiceTest extends TestCase
     }
 
     // ---------------------------------------------------------------
-    //  Tests de validarToken()
+    //  Tests de validateToken()
     // ---------------------------------------------------------------
 
-    public function testValidarTokenValido(): void
+    public function testValidateValidToken(): void
     {
-        $this->auth->registrar(username: 'tokenuser', password: 'password123');
+        $this->auth->register(username: 'tokenuser', password: 'password123');
         $loginResult = $this->auth->login(username: 'tokenuser', password: 'password123');
 
-        $payload = $this->auth->validarToken($loginResult['token']);
+        $payload = $this->auth->validateToken($loginResult['token']);
 
         $this->assertIsArray($payload);
         $this->assertArrayHasKey('user_id', $payload);
@@ -193,34 +192,34 @@ class AuthServiceTest extends TestCase
         $this->assertSame('tokenuser', $payload['username']);
     }
 
-    public function testValidarTokenFormatoIncorrecto(): void
+    public function testValidateTokenIncorrectFormat(): void
     {
         $this->expectException(AppException::class);
-        $this->expectExceptionMessage('formato incorrecto');
+        $this->expectExceptionMessage('incorrect format');
 
-        $this->auth->validarToken('token-sin-puntos');
+        $this->auth->validateToken('token-sin-puntos');
     }
 
-    public function testValidarTokenFirmaInvalida(): void
+    public function testValidateTokenInvalidSignature(): void
     {
-        $this->auth->registrar(username: 'firmauser', password: 'password123');
+        $this->auth->register(username: 'firmauser', password: 'password123');
         $loginResult = $this->auth->login(username: 'firmauser', password: 'password123');
 
-        // Modificar la parte de firma del token
-        $partes = explode('.', $loginResult['token']);
-        $partes[2] = 'firma_invalida_modificada';
-        $tokenModificado = implode('.', $partes);
+        // Modify the signature part of the token
+        $parts = explode('.', $loginResult['token']);
+        $parts[2] = 'firma_invalida_modificada';
+        $modifiedToken = implode('.', $parts);
 
         $this->expectException(AppException::class);
-        $this->expectExceptionMessage('firma no coincide');
+        $this->expectExceptionMessage('signature mismatch');
 
-        $this->auth->validarToken($tokenModificado);
+        $this->auth->validateToken($modifiedToken);
     }
 
-    public function testValidarTokenExpirado(): void
+    public function testValidateExpiredToken(): void
     {
-        // Construir manualmente un token expirado creando la estructura JWT
-        // con un tiempo de expiracion en el pasado
+        // Manually build an expired token by creating the JWT structure
+        // with an expiration time in the past
         $header = base64_encode(json_encode(['alg' => 'HS256', 'typ' => 'JWT']));
         $header = rtrim(strtr($header, '+/', '-_'), '=');
 
@@ -228,65 +227,65 @@ class AuthServiceTest extends TestCase
             'user_id' => 1,
             'username' => 'expired',
             'iat' => time() - 7200,
-            'exp' => time() - 3600, // Expirado hace 1 hora
+            'exp' => time() - 3600, // Expired 1 hour ago
         ]));
         $payload = rtrim(strtr($payload, '+/', '-_'), '=');
 
-        // Firmar con la clave secreta de prueba
+        // Sign with the test secret key
         $secret = 'test_secret_key_for_phpunit';
-        $firma = hash_hmac('SHA256', "{$header}.{$payload}", $secret, true);
-        $firmaB64 = rtrim(strtr(base64_encode($firma), '+/', '-_'), '=');
+        $signature = hash_hmac('SHA256', "{$header}.{$payload}", $secret, true);
+        $signatureB64 = rtrim(strtr(base64_encode($signature), '+/', '-_'), '=');
 
-        $tokenExpirado = "{$header}.{$payload}.{$firmaB64}";
+        $expiredToken = "{$header}.{$payload}.{$signatureB64}";
 
         $this->expectException(AppException::class);
-        $this->expectExceptionMessage('expirado');
+        $this->expectExceptionMessage('expired');
 
-        $this->auth->validarToken($tokenExpirado);
+        $this->auth->validateToken($expiredToken);
     }
 
     // ---------------------------------------------------------------
-    //  Tests de obtenerPerfil()
+    //  Tests de getProfile()
     // ---------------------------------------------------------------
 
-    public function testObtenerPerfil(): void
+    public function testGetProfile(): void
     {
-        $registrado = $this->auth->registrar(
+        $registered = $this->auth->register(
             username: 'perfiluser',
             password: 'password123',
         );
 
-        $perfil = $this->auth->obtenerPerfil(userId: $registrado['id']);
+        $profile = $this->auth->getProfile(userId: $registered['id']);
 
-        $this->assertIsArray($perfil);
-        $this->assertSame($registrado['id'], $perfil['id']);
-        $this->assertSame('perfiluser', $perfil['username']);
-        $this->assertArrayHasKey('created_at', $perfil);
+        $this->assertIsArray($profile);
+        $this->assertSame($registered['id'], $profile['id']);
+        $this->assertSame('perfiluser', $profile['username']);
+        $this->assertArrayHasKey('created_at', $profile);
     }
 
-    public function testObtenerPerfilNoExiste(): void
+    public function testGetProfileNotFound(): void
     {
         $this->expectException(NotFoundException::class);
 
-        $this->auth->obtenerPerfil(userId: 99999);
+        $this->auth->getProfile(userId: 99999);
     }
 
     // ---------------------------------------------------------------
     //  Tests de registro de multiples usuarios
     // ---------------------------------------------------------------
 
-    public function testRegistrarMultiplesUsuarios(): void
+    public function testRegisterMultipleUsers(): void
     {
-        $user1 = $this->auth->registrar(username: 'usuario_uno', password: 'password123');
-        $user2 = $this->auth->registrar(username: 'usuario_dos', password: 'password456');
-        $user3 = $this->auth->registrar(username: 'usuario_tres', password: 'password789');
+        $user1 = $this->auth->register(username: 'usuario_uno', password: 'password123');
+        $user2 = $this->auth->register(username: 'usuario_dos', password: 'password456');
+        $user3 = $this->auth->register(username: 'usuario_tres', password: 'password789');
 
-        // Verificar que todos tienen IDs unicos
+        // Verify all have unique IDs
         $this->assertNotSame($user1['id'], $user2['id']);
         $this->assertNotSame($user2['id'], $user3['id']);
         $this->assertNotSame($user1['id'], $user3['id']);
 
-        // Verificar que cada uno tiene su username correcto
+        // Verify each has its correct username
         $this->assertSame('usuario_uno', $user1['username']);
         $this->assertSame('usuario_dos', $user2['username']);
         $this->assertSame('usuario_tres', $user3['username']);
@@ -296,63 +295,63 @@ class AuthServiceTest extends TestCase
     //  Tests adicionales de validacion de registro
     // ---------------------------------------------------------------
 
-    public function testRegistrarUsernameConEspaciosSeRecorta(): void
+    public function testRegisterUsernameTrimmed(): void
     {
-        $resultado = $this->auth->registrar(
+        $result = $this->auth->register(
             username: '  trimmed_user  ',
             password: 'password123',
         );
 
-        $this->assertSame('trimmed_user', $resultado['username']);
+        $this->assertSame('trimmed_user', $result['username']);
     }
 
-    public function testRegistrarUsernameConGuionBajo(): void
+    public function testRegisterUsernameWithUnderscore(): void
     {
-        $resultado = $this->auth->registrar(
+        $result = $this->auth->register(
             username: 'user_name_123',
             password: 'password123',
         );
 
-        $this->assertSame('user_name_123', $resultado['username']);
+        $this->assertSame('user_name_123', $result['username']);
     }
 
-    public function testRegistrarUsernameDe3Caracteres(): void
+    public function testRegister3CharacterUsername(): void
     {
-        $resultado = $this->auth->registrar(
+        $result = $this->auth->register(
             username: 'abc',
             password: 'password123',
         );
 
-        $this->assertSame('abc', $resultado['username']);
+        $this->assertSame('abc', $result['username']);
     }
 
-    public function testRegistrarUsernameDe50Caracteres(): void
+    public function testRegister50CharacterUsername(): void
     {
         $username = str_repeat('a', 50);
 
-        $resultado = $this->auth->registrar(
+        $result = $this->auth->register(
             username: $username,
             password: 'password123',
         );
 
-        $this->assertSame($username, $resultado['username']);
+        $this->assertSame($username, $result['username']);
     }
 
-    public function testRegistrarPasswordDe6Caracteres(): void
+    public function testRegister6CharacterPassword(): void
     {
-        $resultado = $this->auth->registrar(
+        $result = $this->auth->register(
             username: 'minpass',
             password: '123456',
         );
 
-        $this->assertIsInt($resultado['id']);
+        $this->assertIsInt($result['id']);
     }
 
     // ---------------------------------------------------------------
     //  Tests de seguridad JWT: validacion de algoritmo
     // ---------------------------------------------------------------
 
-    public function testValidarTokenAlgNoneRechazado(): void
+    public function testValidateTokenAlgNoneRejected(): void
     {
         $header = base64_encode(json_encode(['alg' => 'none', 'typ' => 'JWT']));
         $header = rtrim(strtr($header, '+/', '-_'), '=');
@@ -368,12 +367,12 @@ class AuthServiceTest extends TestCase
         $token = "{$header}.{$payload}.emptysig";
 
         $this->expectException(AppException::class);
-        $this->expectExceptionMessage('algoritmo no soportado');
+        $this->expectExceptionMessage('unsupported algorithm');
 
-        $this->auth->validarToken($token);
+        $this->auth->validateToken($token);
     }
 
-    public function testValidarTokenAlgoritmoIncorrectoRechazado(): void
+    public function testValidateTokenWrongAlgorithmRejected(): void
     {
         $header = base64_encode(json_encode(['alg' => 'RS256', 'typ' => 'JWT']));
         $header = rtrim(strtr($header, '+/', '-_'), '=');
@@ -387,80 +386,77 @@ class AuthServiceTest extends TestCase
         $payload = rtrim(strtr($payload, '+/', '-_'), '=');
 
         $secret = 'test_secret_key_for_phpunit';
-        $firma = hash_hmac('SHA256', "{$header}.{$payload}", $secret, true);
-        $firmaB64 = rtrim(strtr(base64_encode($firma), '+/', '-_'), '=');
+        $signature = hash_hmac('SHA256', "{$header}.{$payload}", $secret, true);
+        $signatureB64 = rtrim(strtr(base64_encode($signature), '+/', '-_'), '=');
 
-        $token = "{$header}.{$payload}.{$firmaB64}";
+        $token = "{$header}.{$payload}.{$signatureB64}";
 
         $this->expectException(AppException::class);
-        $this->expectExceptionMessage('algoritmo no soportado');
+        $this->expectExceptionMessage('unsupported algorithm');
 
-        $this->auth->validarToken($token);
+        $this->auth->validateToken($token);
     }
 
     // ---------------------------------------------------------------
     //  Tests de JWT_SECRET obligatorio
     // ---------------------------------------------------------------
 
-    public function testJwtSecretFaltanteLanzaExcepcionEnLogin(): void
+    public function testConstructorWithoutSecretAndWithoutEnvThrows(): void
     {
-        // Registrar con secret configurado
-        $this->auth->registrar(username: 'secrettest', password: 'password123');
-
-        // Quitar el secret
+        // Ensure no env var is set
         putenv('JWT_SECRET');
 
         $this->expectException(AppException::class);
         $this->expectExceptionMessage('JWT_SECRET');
 
-        // Login intenta generar token -> necesita secret
-        $this->auth->login(username: 'secrettest', password: 'password123');
+        new AuthService();
     }
 
-    public function testJwtSecretFaltanteLanzaExcepcionEnValidar(): void
+    public function testConstructorReadsSecretFromEnvWhenNotInjected(): void
     {
-        // Registrar y login con secret configurado
-        $this->auth->registrar(username: 'secrettest2', password: 'password123');
-        $result = $this->auth->login(username: 'secrettest2', password: 'password123');
+        putenv('JWT_SECRET=env_secret_value');
 
-        // Quitar el secret
-        putenv('JWT_SECRET');
+        try {
+            $auth = new AuthService();
 
-        $this->expectException(AppException::class);
-        $this->expectExceptionMessage('JWT_SECRET');
+            // Should not throw — secret is read from env
+            $auth->register(username: 'envuser', password: 'password123');
+            $loginResult = $auth->login(username: 'envuser', password: 'password123');
 
-        // Validacion tambien necesita secret
-        $this->auth->validarToken($result['token']);
+            $this->assertNotEmpty($loginResult['token']);
+        } finally {
+            putenv('JWT_SECRET');
+        }
     }
 
     // ---------------------------------------------------------------
-    //  Tests de autenticar() con header inyectado
+    //  Tests de authenticate() con header inyectado
     // ---------------------------------------------------------------
 
-    public function testAutenticarConHeaderInyectado(): void
+    public function testAuthenticateWithInjectedHeader(): void
     {
-        $this->auth->registrar(username: 'authuser', password: 'password123');
+        $this->auth->register(username: 'authuser', password: 'password123');
         $loginResult = $this->auth->login(username: 'authuser', password: 'password123');
 
-        $result = $this->auth->autenticar('Bearer ' . $loginResult['token']);
+        $result = $this->auth->authenticate('Bearer ' . $loginResult['token']);
 
         $this->assertArrayHasKey('user_id', $result);
         $this->assertSame('authuser', $result['username']);
     }
 
-    public function testAutenticarConHeaderVacio(): void
+    public function testAuthenticateWithEmptyHeader(): void
     {
         $this->expectException(AppException::class);
-        $this->expectExceptionMessage('Token de autenticacion requerido');
+        $this->expectExceptionMessage('Authentication token required');
 
-        $this->auth->autenticar('');
+        $this->auth->authenticate('');
     }
 
-    public function testAutenticarConFormatoInvalido(): void
+    public function testAuthenticateWithInvalidFormat(): void
     {
         $this->expectException(AppException::class);
-        $this->expectExceptionMessage('Formato de token invalido');
+        $this->expectExceptionMessage('Invalid token format');
 
-        $this->auth->autenticar('NotBearer some-token');
+        $this->auth->authenticate('NotBearer some-token');
     }
 }

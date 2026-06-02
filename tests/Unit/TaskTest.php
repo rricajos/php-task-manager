@@ -11,6 +11,7 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * Tests unitarios para la entidad Task y los enums Priority/Status.
+ * Unit tests for the Task entity and Priority/Status enums.
  *
  * @covers \MiniProject\Task
  * @covers \MiniProject\Priority
@@ -22,327 +23,327 @@ class TaskTest extends TestCase
     //  Tests de creacion de Task
     // ---------------------------------------------------------------
 
-    public function testCrearTareaConTodasLasPropiedades(): void
+    public function testCreateTaskWithAllProperties(): void
     {
         $task = new Task(
             id: 1,
-            titulo: 'Comprar leche',
-            descripcion: 'Ir al supermercado',
-            prioridad: Priority::Alta,
-            estado: Status::Pendiente,
-            fechaCreacion: '2026-01-15 10:00:00',
-            fechaCompletada: null,
+            title: 'Comprar leche',
+            description: 'Ir al supermercado',
+            priority: Priority::High,
+            status: Status::Pending,
+            createdAt: '2026-01-15 10:00:00',
+            completedAt: null,
         );
 
         $this->assertSame(1, $task->id);
-        $this->assertSame('Comprar leche', $task->titulo);
-        $this->assertSame('Ir al supermercado', $task->descripcion);
-        $this->assertSame(Priority::Alta, $task->prioridad);
-        $this->assertSame(Status::Pendiente, $task->estado);
-        $this->assertSame('2026-01-15 10:00:00', $task->fechaCreacion);
-        $this->assertNull($task->fechaCompletada);
+        $this->assertSame('Comprar leche', $task->title);
+        $this->assertSame('Ir al supermercado', $task->description);
+        $this->assertSame(Priority::High, $task->priority);
+        $this->assertSame(Status::Pending, $task->status);
+        $this->assertSame('2026-01-15 10:00:00', $task->createdAt);
+        $this->assertNull($task->completedAt);
     }
 
-    public function testCrearTareaConValoresPorDefecto(): void
+    public function testCreateTaskWithDefaultValues(): void
     {
         $task = new Task(
             id: null,
-            titulo: 'Tarea nueva',
-            descripcion: '',
-            prioridad: Priority::Media,
+            title: 'Tarea nueva',
+            description: '',
+            priority: Priority::Medium,
         );
 
         $this->assertNull($task->id);
-        $this->assertSame(Status::Pendiente, $task->estado);
-        $this->assertSame('', $task->fechaCreacion);
-        $this->assertNull($task->fechaCompletada);
+        $this->assertSame(Status::Pending, $task->status);
+        $this->assertSame('', $task->createdAt);
+        $this->assertNull($task->completedAt);
     }
 
-    public function testCrearTareaCompletada(): void
+    public function testCreateCompletedTask(): void
     {
         $task = new Task(
             id: 5,
-            titulo: 'Tarea terminada',
-            descripcion: 'Ya esta lista',
-            prioridad: Priority::Baja,
-            estado: Status::Completada,
-            fechaCreacion: '2026-01-10 08:00:00',
-            fechaCompletada: '2026-01-12 14:30:00',
+            title: 'Tarea terminada',
+            description: 'Ya esta lista',
+            priority: Priority::Low,
+            status: Status::Completed,
+            createdAt: '2026-01-10 08:00:00',
+            completedAt: '2026-01-12 14:30:00',
         );
 
-        $this->assertSame(Status::Completada, $task->estado);
-        $this->assertSame('2026-01-12 14:30:00', $task->fechaCompletada);
+        $this->assertSame(Status::Completed, $task->status);
+        $this->assertSame('2026-01-12 14:30:00', $task->completedAt);
     }
 
     // ---------------------------------------------------------------
     //  Tests del metodo de fabrica fromRow()
     // ---------------------------------------------------------------
 
-    public function testFromRowConDatosValidos(): void
+    public function testFromRowWithValidData(): void
     {
         $row = [
             'id' => '7',
-            'titulo' => 'Estudiar PHP',
-            'descripcion' => 'Repasar enums y readonly',
-            'prioridad' => 'alta',
-            'estado' => 'pendiente',
-            'fecha_creacion' => '2026-05-01 09:00:00',
-            'fecha_completada' => null,
+            'title' => 'Estudiar PHP',
+            'description' => 'Repasar enums y readonly',
+            'priority' => 'high',
+            'status' => 'pending',
+            'created_at' => '2026-05-01 09:00:00',
+            'completed_at' => null,
         ];
 
         $task = Task::fromRow($row);
 
         $this->assertSame(7, $task->id);
-        $this->assertSame('Estudiar PHP', $task->titulo);
-        $this->assertSame('Repasar enums y readonly', $task->descripcion);
-        $this->assertSame(Priority::Alta, $task->prioridad);
-        $this->assertSame(Status::Pendiente, $task->estado);
-        $this->assertSame('2026-05-01 09:00:00', $task->fechaCreacion);
-        $this->assertNull($task->fechaCompletada);
+        $this->assertSame('Estudiar PHP', $task->title);
+        $this->assertSame('Repasar enums y readonly', $task->description);
+        $this->assertSame(Priority::High, $task->priority);
+        $this->assertSame(Status::Pending, $task->status);
+        $this->assertSame('2026-05-01 09:00:00', $task->createdAt);
+        $this->assertNull($task->completedAt);
     }
 
-    public function testFromRowConTareaCompletada(): void
+    public function testFromRowWithCompletedTask(): void
     {
         $row = [
             'id' => '3',
-            'titulo' => 'Hacer ejercicio',
-            'descripcion' => '30 minutos de cardio',
-            'prioridad' => 'media',
-            'estado' => 'completada',
-            'fecha_creacion' => '2026-04-20 07:00:00',
-            'fecha_completada' => '2026-04-20 07:35:00',
+            'title' => 'Hacer ejercicio',
+            'description' => '30 minutos de cardio',
+            'priority' => 'medium',
+            'status' => 'completed',
+            'created_at' => '2026-04-20 07:00:00',
+            'completed_at' => '2026-04-20 07:35:00',
         ];
 
         $task = Task::fromRow($row);
 
         $this->assertSame(3, $task->id);
-        $this->assertSame(Priority::Media, $task->prioridad);
-        $this->assertSame(Status::Completada, $task->estado);
-        $this->assertSame('2026-04-20 07:35:00', $task->fechaCompletada);
+        $this->assertSame(Priority::Medium, $task->priority);
+        $this->assertSame(Status::Completed, $task->status);
+        $this->assertSame('2026-04-20 07:35:00', $task->completedAt);
     }
 
-    public function testFromRowConDescripcionNula(): void
+    public function testFromRowWithNullDescription(): void
     {
         $row = [
             'id' => '1',
-            'titulo' => 'Sin descripcion',
-            'descripcion' => null,
-            'prioridad' => 'baja',
-            'estado' => 'pendiente',
-            'fecha_creacion' => null,
-            'fecha_completada' => null,
+            'title' => 'Sin descripcion',
+            'description' => null,
+            'priority' => 'low',
+            'status' => 'pending',
+            'created_at' => null,
+            'completed_at' => null,
         ];
 
         $task = Task::fromRow($row);
 
-        $this->assertSame('', $task->descripcion);
-        $this->assertSame('', $task->fechaCreacion);
+        $this->assertSame('', $task->description);
+        $this->assertSame('', $task->createdAt);
     }
 
     // ---------------------------------------------------------------
     //  Tests del metodo toArray()
     // ---------------------------------------------------------------
 
-    public function testToArrayRetornaEstructuraCorrecta(): void
+    public function testToArrayReturnsCorrectStructure(): void
     {
         $task = new Task(
             id: 10,
-            titulo: 'Revisar codigo',
-            descripcion: 'Code review del PR #42',
-            prioridad: Priority::Alta,
-            estado: Status::Pendiente,
-            fechaCreacion: '2026-03-15 16:00:00',
-            fechaCompletada: null,
+            title: 'Revisar codigo',
+            description: 'Code review del PR #42',
+            priority: Priority::High,
+            status: Status::Pending,
+            createdAt: '2026-03-15 16:00:00',
+            completedAt: null,
         );
 
         $array = $task->toArray();
 
         $this->assertIsArray($array);
         $this->assertArrayHasKey('id', $array);
-        $this->assertArrayHasKey('titulo', $array);
-        $this->assertArrayHasKey('descripcion', $array);
-        $this->assertArrayHasKey('prioridad', $array);
-        $this->assertArrayHasKey('estado', $array);
-        $this->assertArrayHasKey('fecha_creacion', $array);
-        $this->assertArrayHasKey('fecha_completada', $array);
+        $this->assertArrayHasKey('title', $array);
+        $this->assertArrayHasKey('description', $array);
+        $this->assertArrayHasKey('priority', $array);
+        $this->assertArrayHasKey('status', $array);
+        $this->assertArrayHasKey('created_at', $array);
+        $this->assertArrayHasKey('completed_at', $array);
 
         $this->assertSame(10, $array['id']);
-        $this->assertSame('Revisar codigo', $array['titulo']);
-        $this->assertSame('Code review del PR #42', $array['descripcion']);
-        $this->assertSame('alta', $array['prioridad']);
-        $this->assertSame('pendiente', $array['estado']);
-        $this->assertSame('2026-03-15 16:00:00', $array['fecha_creacion']);
-        $this->assertNull($array['fecha_completada']);
+        $this->assertSame('Revisar codigo', $array['title']);
+        $this->assertSame('Code review del PR #42', $array['description']);
+        $this->assertSame('high', $array['priority']);
+        $this->assertSame('pending', $array['status']);
+        $this->assertSame('2026-03-15 16:00:00', $array['created_at']);
+        $this->assertNull($array['completed_at']);
     }
 
-    public function testToArrayConTareaCompletada(): void
+    public function testToArrayWithCompletedTask(): void
     {
         $task = new Task(
             id: 2,
-            titulo: 'Desplegar app',
-            descripcion: 'Deploy a produccion',
-            prioridad: Priority::Media,
-            estado: Status::Completada,
-            fechaCreacion: '2026-02-01 12:00:00',
-            fechaCompletada: '2026-02-01 14:00:00',
+            title: 'Desplegar app',
+            description: 'Deploy a produccion',
+            priority: Priority::Medium,
+            status: Status::Completed,
+            createdAt: '2026-02-01 12:00:00',
+            completedAt: '2026-02-01 14:00:00',
         );
 
         $array = $task->toArray();
 
-        $this->assertSame('completada', $array['estado']);
-        $this->assertSame('media', $array['prioridad']);
-        $this->assertSame('2026-02-01 14:00:00', $array['fecha_completada']);
+        $this->assertSame('completed', $array['status']);
+        $this->assertSame('medium', $array['priority']);
+        $this->assertSame('2026-02-01 14:00:00', $array['completed_at']);
     }
 
-    public function testToArrayUsaValoresDeEnumComoString(): void
+    public function testToArrayUsesEnumValuesAsString(): void
     {
         $task = new Task(
             id: 1,
-            titulo: 'Test',
-            descripcion: '',
-            prioridad: Priority::Baja,
-            estado: Status::Pendiente,
+            title: 'Test',
+            description: '',
+            priority: Priority::Low,
+            status: Status::Pending,
         );
 
         $array = $task->toArray();
 
         // Los valores del enum se almacenan como string en el array
-        $this->assertSame('baja', $array['prioridad']);
-        $this->assertSame('pendiente', $array['estado']);
+        $this->assertSame('low', $array['priority']);
+        $this->assertSame('pending', $array['status']);
     }
 
     // ---------------------------------------------------------------
     //  Tests del enum Priority
     // ---------------------------------------------------------------
 
-    public function testPriorityTieneTresCasos(): void
+    public function testPriorityHasThreeCases(): void
     {
         $cases = Priority::cases();
 
         $this->assertCount(3, $cases);
-        $this->assertSame(Priority::Alta, $cases[0]);
-        $this->assertSame(Priority::Media, $cases[1]);
-        $this->assertSame(Priority::Baja, $cases[2]);
+        $this->assertSame(Priority::High, $cases[0]);
+        $this->assertSame(Priority::Medium, $cases[1]);
+        $this->assertSame(Priority::Low, $cases[2]);
     }
 
-    public function testPriorityValoresBackedEnum(): void
+    public function testPriorityBackedEnumValues(): void
     {
-        $this->assertSame('alta', Priority::Alta->value);
-        $this->assertSame('media', Priority::Media->value);
-        $this->assertSame('baja', Priority::Baja->value);
+        $this->assertSame('high', Priority::High->value);
+        $this->assertSame('medium', Priority::Medium->value);
+        $this->assertSame('low', Priority::Low->value);
     }
 
-    public function testPriorityFromStringValido(): void
+    public function testPriorityFromValidString(): void
     {
-        $this->assertSame(Priority::Alta, Priority::from('alta'));
-        $this->assertSame(Priority::Media, Priority::from('media'));
-        $this->assertSame(Priority::Baja, Priority::from('baja'));
+        $this->assertSame(Priority::High, Priority::from('high'));
+        $this->assertSame(Priority::Medium, Priority::from('medium'));
+        $this->assertSame(Priority::Low, Priority::from('low'));
     }
 
-    public function testPriorityFromStringInvalidoLanzaExcepcion(): void
+    public function testPriorityFromInvalidStringThrowsException(): void
     {
         $this->expectException(\ValueError::class);
         Priority::from('urgente');
     }
 
-    public function testPriorityTryFromRetornaNullParaValorInvalido(): void
+    public function testPriorityTryFromReturnsNullForInvalidValue(): void
     {
         $this->assertNull(Priority::tryFrom('urgente'));
         $this->assertNull(Priority::tryFrom(''));
         $this->assertNull(Priority::tryFrom('ALTA'));
     }
 
-    public function testPriorityColorizadoContieneElValor(): void
+    public function testPriorityColorizedContainsValue(): void
     {
-        // El metodo colorizado() envuelve el valor con codigos ANSI
-        $this->assertStringContainsString('alta', Priority::Alta->colorizado());
-        $this->assertStringContainsString('media', Priority::Media->colorizado());
-        $this->assertStringContainsString('baja', Priority::Baja->colorizado());
+        // El metodo colorized() envuelve el valor con codigos ANSI
+        $this->assertStringContainsString('high', Priority::High->colorized());
+        $this->assertStringContainsString('medium', Priority::Medium->colorized());
+        $this->assertStringContainsString('low', Priority::Low->colorized());
     }
 
-    public function testPriorityIndicadorRetornaSimbolosCorrecto(): void
+    public function testPriorityIndicatorReturnsCorrectSymbols(): void
     {
-        $this->assertSame('!!!', Priority::Alta->indicador());
-        $this->assertSame('!! ', Priority::Media->indicador());
-        $this->assertSame('!  ', Priority::Baja->indicador());
+        $this->assertSame('!!!', Priority::High->indicator());
+        $this->assertSame('!! ', Priority::Medium->indicator());
+        $this->assertSame('!  ', Priority::Low->indicator());
     }
 
     // ---------------------------------------------------------------
     //  Tests del enum Status
     // ---------------------------------------------------------------
 
-    public function testStatusTieneDosCasos(): void
+    public function testStatusHasTwoCases(): void
     {
         $cases = Status::cases();
 
         $this->assertCount(2, $cases);
-        $this->assertSame(Status::Pendiente, $cases[0]);
-        $this->assertSame(Status::Completada, $cases[1]);
+        $this->assertSame(Status::Pending, $cases[0]);
+        $this->assertSame(Status::Completed, $cases[1]);
     }
 
-    public function testStatusValoresBackedEnum(): void
+    public function testStatusBackedEnumValues(): void
     {
-        $this->assertSame('pendiente', Status::Pendiente->value);
-        $this->assertSame('completada', Status::Completada->value);
+        $this->assertSame('pending', Status::Pending->value);
+        $this->assertSame('completed', Status::Completed->value);
     }
 
-    public function testStatusFromStringValido(): void
+    public function testStatusFromValidString(): void
     {
-        $this->assertSame(Status::Pendiente, Status::from('pendiente'));
-        $this->assertSame(Status::Completada, Status::from('completada'));
+        $this->assertSame(Status::Pending, Status::from('pending'));
+        $this->assertSame(Status::Completed, Status::from('completed'));
     }
 
-    public function testStatusFromStringInvalidoLanzaExcepcion(): void
+    public function testStatusFromInvalidStringThrowsException(): void
     {
         $this->expectException(\ValueError::class);
         Status::from('cancelada');
     }
 
-    public function testStatusColorizadoContieneElValor(): void
+    public function testStatusColorizedContainsValue(): void
     {
-        $this->assertStringContainsString('pendiente', Status::Pendiente->colorizado());
-        $this->assertStringContainsString('completada', Status::Completada->colorizado());
+        $this->assertStringContainsString('pending', Status::Pending->colorized());
+        $this->assertStringContainsString('completed', Status::Completed->colorized());
     }
 
-    public function testStatusCasillaRetornaFormato(): void
+    public function testStatusCheckboxReturnsFormat(): void
     {
-        $this->assertSame('[ ]', Status::Pendiente->casilla());
-        $this->assertSame('[x]', Status::Completada->casilla());
+        $this->assertSame('[ ]', Status::Pending->checkbox());
+        $this->assertSame('[x]', Status::Completed->checkbox());
     }
 
     // ---------------------------------------------------------------
     //  Tests de metodos de formato
     // ---------------------------------------------------------------
 
-    public function testFormatoLineaContieneIdYTitulo(): void
+    public function testFormatLineContainsIdAndTitle(): void
     {
         $task = new Task(
             id: 42,
-            titulo: 'Tarea de prueba',
-            descripcion: '',
-            prioridad: Priority::Alta,
-            estado: Status::Pendiente,
+            title: 'Tarea de prueba',
+            description: '',
+            priority: Priority::High,
+            status: Status::Pending,
         );
 
-        $linea = $task->formatoLinea();
+        $linea = $task->formatLine();
 
         $this->assertStringContainsString('42', $linea);
         $this->assertStringContainsString('Tarea de prueba', $linea);
     }
 
-    public function testFormatoDetalleContieneInformacionCompleta(): void
+    public function testFormatDetailContainsCompleteInfo(): void
     {
         $task = new Task(
             id: 1,
-            titulo: 'Mi tarea',
-            descripcion: 'Una descripcion detallada',
-            prioridad: Priority::Media,
-            estado: Status::Completada,
-            fechaCreacion: '2026-01-01 00:00:00',
-            fechaCompletada: '2026-01-02 12:00:00',
+            title: 'Mi tarea',
+            description: 'Una descripcion detallada',
+            priority: Priority::Medium,
+            status: Status::Completed,
+            createdAt: '2026-01-01 00:00:00',
+            completedAt: '2026-01-02 12:00:00',
         );
 
-        $detalle = $task->formatoDetalle();
+        $detalle = $task->formatDetail();
 
         $this->assertStringContainsString('Mi tarea', $detalle);
         $this->assertStringContainsString('Una descripcion detallada', $detalle);
@@ -350,196 +351,196 @@ class TaskTest extends TestCase
         $this->assertStringContainsString('2026-01-02 12:00:00', $detalle);
     }
 
-    public function testFormatoDetalleSinFechaCompletada(): void
+    public function testFormatDetailWithoutCompletedAt(): void
     {
         $task = new Task(
             id: 1,
-            titulo: 'Pendiente',
-            descripcion: '',
-            prioridad: Priority::Baja,
-            estado: Status::Pendiente,
-            fechaCreacion: '2026-01-01 00:00:00',
-            fechaCompletada: null,
+            title: 'Pendiente',
+            description: '',
+            priority: Priority::Low,
+            status: Status::Pending,
+            createdAt: '2026-01-01 00:00:00',
+            completedAt: null,
         );
 
-        $detalle = $task->formatoDetalle();
+        $detalle = $task->formatDetail();
 
-        // No debe contener la linea "Completada:" si fechaCompletada es null
+        // No debe contener la linea "Completada:" si completedAt es null
         $this->assertStringNotContainsString('Completada:', $detalle);
     }
 
     // ---------------------------------------------------------------
-    //  Tests de la propiedad fechaVencimiento
+    //  Tests de la propiedad dueDate
     // ---------------------------------------------------------------
 
-    public function testCrearTareaConFechaVencimiento(): void
+    public function testCreateTaskWithDueDate(): void
     {
         $task = new Task(
             id: 1,
-            titulo: 'Tarea con vencimiento',
-            descripcion: 'Debe completarse antes de la fecha',
-            prioridad: Priority::Alta,
-            estado: Status::Pendiente,
-            fechaCreacion: '2026-05-01 10:00:00',
-            fechaCompletada: null,
-            fechaVencimiento: '2026-12-31',
+            title: 'Tarea con vencimiento',
+            description: 'Debe completarse antes de la fecha',
+            priority: Priority::High,
+            status: Status::Pending,
+            createdAt: '2026-05-01 10:00:00',
+            completedAt: null,
+            dueDate: '2026-12-31',
         );
 
-        $this->assertSame('2026-12-31', $task->fechaVencimiento);
+        $this->assertSame('2026-12-31', $task->dueDate);
     }
 
-    public function testCrearTareaSinFechaVencimientoEsNull(): void
+    public function testCreateTaskWithoutDueDateIsNull(): void
     {
         $task = new Task(
             id: 1,
-            titulo: 'Tarea sin vencimiento',
-            descripcion: '',
-            prioridad: Priority::Media,
+            title: 'Tarea sin vencimiento',
+            description: '',
+            priority: Priority::Medium,
         );
 
-        $this->assertNull($task->fechaVencimiento);
+        $this->assertNull($task->dueDate);
     }
 
-    public function testFechaVencimientoEnToArray(): void
+    public function testDueDateInToArray(): void
     {
         $task = new Task(
             id: 5,
-            titulo: 'Tarea con fecha limite',
-            descripcion: '',
-            prioridad: Priority::Alta,
-            estado: Status::Pendiente,
-            fechaCreacion: '2026-05-01 10:00:00',
-            fechaCompletada: null,
-            fechaVencimiento: '2026-06-15',
+            title: 'Tarea con fecha limite',
+            description: '',
+            priority: Priority::High,
+            status: Status::Pending,
+            createdAt: '2026-05-01 10:00:00',
+            completedAt: null,
+            dueDate: '2026-06-15',
         );
 
         $array = $task->toArray();
 
-        $this->assertArrayHasKey('fecha_vencimiento', $array);
-        $this->assertSame('2026-06-15', $array['fecha_vencimiento']);
+        $this->assertArrayHasKey('due_date', $array);
+        $this->assertSame('2026-06-15', $array['due_date']);
     }
 
-    public function testFechaVencimientoNullEnToArray(): void
+    public function testDueDateNullInToArray(): void
     {
         $task = new Task(
             id: 1,
-            titulo: 'Sin vencimiento',
-            descripcion: '',
-            prioridad: Priority::Baja,
+            title: 'Sin vencimiento',
+            description: '',
+            priority: Priority::Low,
         );
 
         $array = $task->toArray();
 
-        $this->assertArrayHasKey('fecha_vencimiento', $array);
-        $this->assertNull($array['fecha_vencimiento']);
+        $this->assertArrayHasKey('due_date', $array);
+        $this->assertNull($array['due_date']);
     }
 
-    public function testFromRowConFechaVencimiento(): void
+    public function testFromRowWithDueDate(): void
     {
         $row = [
             'id' => '10',
-            'titulo' => 'Tarea con fecha',
-            'descripcion' => 'Descripcion',
-            'prioridad' => 'alta',
-            'estado' => 'pendiente',
-            'fecha_creacion' => '2026-05-01 09:00:00',
-            'fecha_completada' => null,
-            'fecha_vencimiento' => '2026-06-30',
+            'title' => 'Tarea con fecha',
+            'description' => 'Descripcion',
+            'priority' => 'high',
+            'status' => 'pending',
+            'created_at' => '2026-05-01 09:00:00',
+            'completed_at' => null,
+            'due_date' => '2026-06-30',
         ];
 
         $task = Task::fromRow($row);
 
-        $this->assertSame('2026-06-30', $task->fechaVencimiento);
+        $this->assertSame('2026-06-30', $task->dueDate);
     }
 
-    public function testFromRowSinFechaVencimientoEsNull(): void
+    public function testFromRowWithoutDueDateIsNull(): void
     {
         $row = [
             'id' => '10',
-            'titulo' => 'Tarea sin fecha',
-            'descripcion' => '',
-            'prioridad' => 'media',
-            'estado' => 'pendiente',
-            'fecha_creacion' => '2026-05-01 09:00:00',
-            'fecha_completada' => null,
+            'title' => 'Tarea sin fecha',
+            'description' => '',
+            'priority' => 'medium',
+            'status' => 'pending',
+            'created_at' => '2026-05-01 09:00:00',
+            'completed_at' => null,
         ];
 
         $task = Task::fromRow($row);
 
-        $this->assertNull($task->fechaVencimiento);
+        $this->assertNull($task->dueDate);
     }
 
-    public function testFormatoDetalleConFechaVencimiento(): void
+    public function testFormatDetailWithDueDate(): void
     {
         $task = new Task(
             id: 1,
-            titulo: 'Tarea con vencimiento',
-            descripcion: 'Desc',
-            prioridad: Priority::Alta,
-            estado: Status::Pendiente,
-            fechaCreacion: '2026-05-01 10:00:00',
-            fechaCompletada: null,
-            fechaVencimiento: '2099-12-31',
+            title: 'Tarea con vencimiento',
+            description: 'Desc',
+            priority: Priority::High,
+            status: Status::Pending,
+            createdAt: '2026-05-01 10:00:00',
+            completedAt: null,
+            dueDate: '2099-12-31',
         );
 
-        $detalle = $task->formatoDetalle();
+        $detalle = $task->formatDetail();
 
         $this->assertStringContainsString('Vencimiento:', $detalle);
         $this->assertStringContainsString('2099-12-31', $detalle);
     }
 
-    public function testFormatoDetalleSinFechaVencimiento(): void
+    public function testFormatDetailWithoutDueDate(): void
     {
         $task = new Task(
             id: 1,
-            titulo: 'Sin vencimiento',
-            descripcion: '',
-            prioridad: Priority::Baja,
-            estado: Status::Pendiente,
-            fechaCreacion: '2026-05-01 10:00:00',
-            fechaCompletada: null,
-            fechaVencimiento: null,
+            title: 'Sin vencimiento',
+            description: '',
+            priority: Priority::Low,
+            status: Status::Pending,
+            createdAt: '2026-05-01 10:00:00',
+            completedAt: null,
+            dueDate: null,
         );
 
-        $detalle = $task->formatoDetalle();
+        $detalle = $task->formatDetail();
 
         $this->assertStringNotContainsString('Vencimiento:', $detalle);
     }
 
-    public function testFormatoLineaTareaVencidaMuestraIndicador(): void
+    public function testFormatLineOverdueTaskShowsIndicator(): void
     {
         // Usar una fecha muy pasada para asegurar que siempre esta "vencida"
         $task = new Task(
             id: 1,
-            titulo: 'Tarea vencida',
-            descripcion: '',
-            prioridad: Priority::Alta,
-            estado: Status::Pendiente,
-            fechaCreacion: '2020-01-01 10:00:00',
-            fechaCompletada: null,
-            fechaVencimiento: '2020-01-01',
+            title: 'Tarea vencida',
+            description: '',
+            priority: Priority::High,
+            status: Status::Pending,
+            createdAt: '2020-01-01 10:00:00',
+            completedAt: null,
+            dueDate: '2020-01-01',
         );
 
-        $linea = $task->formatoLinea();
+        $linea = $task->formatLine();
 
         $this->assertStringContainsString('VENCIDA', $linea);
     }
 
-    public function testFormatoLineaTareaCompletadaNoMuestraVencida(): void
+    public function testFormatLineCompletedTaskDoesNotShowOverdue(): void
     {
-        // Una tarea completada no debe mostrar VENCIDA aunque fecha_vencimiento sea pasada
+        // Una tarea completada no debe mostrar VENCIDA aunque due_date sea pasada
         $task = new Task(
             id: 1,
-            titulo: 'Tarea completada',
-            descripcion: '',
-            prioridad: Priority::Alta,
-            estado: Status::Completada,
-            fechaCreacion: '2020-01-01 10:00:00',
-            fechaCompletada: '2020-01-02 10:00:00',
-            fechaVencimiento: '2020-01-01',
+            title: 'Tarea completada',
+            description: '',
+            priority: Priority::High,
+            status: Status::Completed,
+            createdAt: '2020-01-01 10:00:00',
+            completedAt: '2020-01-02 10:00:00',
+            dueDate: '2020-01-01',
         );
 
-        $linea = $task->formatoLinea();
+        $linea = $task->formatLine();
 
         $this->assertStringNotContainsString('VENCIDA', $linea);
     }

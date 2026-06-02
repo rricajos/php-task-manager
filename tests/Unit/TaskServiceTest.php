@@ -16,9 +16,7 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * Tests unitarios para TaskService con base de datos SQLite en memoria.
- *
- * Usa una base de datos real en memoria en lugar de mocks para mayor
- * fidelidad y simplicidad, dado que el repositorio depende del Singleton Database.
+ * Unit tests for TaskService with in-memory SQLite database.
  *
  * @covers \MiniProject\TaskService
  * @covers \MiniProject\TaskRepository
@@ -49,708 +47,777 @@ class TaskServiceTest extends TestCase
     }
 
     // ---------------------------------------------------------------
-    //  Tests de crearTarea con datos validos
+    //  Tests for createTask with valid data
     // ---------------------------------------------------------------
 
-    public function testCrearTareaConDatosValidos(): void
+    public function testCreateTaskWithValidData(): void
     {
-        $task = $this->service->crearTarea(
-            titulo: 'Comprar pan',
-            descripcion: 'En la panaderia de la esquina',
-            prioridad: 'alta',
+        $task = $this->service->createTask(
+            title: 'Comprar pan',
+            description: 'En la panaderia de la esquina',
+            priority: 'high',
         );
 
         $this->assertInstanceOf(Task::class, $task);
         $this->assertNotNull($task->id);
-        $this->assertSame('Comprar pan', $task->titulo);
-        $this->assertSame('En la panaderia de la esquina', $task->descripcion);
-        $this->assertSame(Priority::Alta, $task->prioridad);
-        $this->assertSame(Status::Pendiente, $task->estado);
-        $this->assertNotEmpty($task->fechaCreacion);
+        $this->assertSame('Comprar pan', $task->title);
+        $this->assertSame('En la panaderia de la esquina', $task->description);
+        $this->assertSame(Priority::High, $task->priority);
+        $this->assertSame(Status::Pending, $task->status);
+        $this->assertNotEmpty($task->createdAt);
     }
 
-    public function testCrearTareaConPrioridadMedia(): void
+    public function testCreateTaskWithMediumPriority(): void
     {
-        $task = $this->service->crearTarea(
-            titulo: 'Estudiar PHP',
-            descripcion: 'Repasar patrones de diseno',
-            prioridad: 'media',
+        $task = $this->service->createTask(
+            title: 'Estudiar PHP',
+            description: 'Repasar patrones de diseno',
+            priority: 'medium',
         );
 
-        $this->assertSame(Priority::Media, $task->prioridad);
+        $this->assertSame(Priority::Medium, $task->priority);
     }
 
-    public function testCrearTareaConPrioridadBaja(): void
+    public function testCreateTaskWithLowPriority(): void
     {
-        $task = $this->service->crearTarea(
-            titulo: 'Ordenar escritorio',
-            descripcion: '',
-            prioridad: 'baja',
+        $task = $this->service->createTask(
+            title: 'Ordenar escritorio',
+            description: '',
+            priority: 'low',
         );
 
-        $this->assertSame(Priority::Baja, $task->prioridad);
+        $this->assertSame(Priority::Low, $task->priority);
     }
 
-    public function testCrearTareaConDescripcionVacia(): void
+    public function testCreateTaskWithEmptyDescription(): void
     {
-        $task = $this->service->crearTarea(
-            titulo: 'Tarea sin descripcion',
-            descripcion: '',
-            prioridad: 'media',
+        $task = $this->service->createTask(
+            title: 'Tarea sin descripcion',
+            description: '',
+            priority: 'medium',
         );
 
-        $this->assertSame('', $task->descripcion);
+        $this->assertSame('', $task->description);
     }
 
-    public function testCrearTareaRecortaEspaciosDelTitulo(): void
+    public function testCreateTaskTrimsTitle(): void
     {
-        $task = $this->service->crearTarea(
-            titulo: '   Titulo con espacios   ',
-            descripcion: '',
-            prioridad: 'baja',
+        $task = $this->service->createTask(
+            title: '   Titulo con espacios   ',
+            description: '',
+            priority: 'low',
         );
 
-        $this->assertSame('Titulo con espacios', $task->titulo);
+        $this->assertSame('Titulo con espacios', $task->title);
     }
 
-    public function testCrearVariasTareasAsignaIdsConsecutivos(): void
+    public function testCreateMultipleTasksAssignsConsecutiveIds(): void
     {
-        $tarea1 = $this->service->crearTarea('Primera tarea', '', 'alta');
-        $tarea2 = $this->service->crearTarea('Segunda tarea', '', 'media');
-        $tarea3 = $this->service->crearTarea('Tercera tarea', '', 'baja');
+        $task1 = $this->service->createTask('Primera tarea', '', 'high');
+        $task2 = $this->service->createTask('Segunda tarea', '', 'medium');
+        $task3 = $this->service->createTask('Tercera tarea', '', 'low');
 
-        $this->assertSame(1, $tarea1->id);
-        $this->assertSame(2, $tarea2->id);
-        $this->assertSame(3, $tarea3->id);
+        $this->assertSame(1, $task1->id);
+        $this->assertSame(2, $task2->id);
+        $this->assertSame(3, $task3->id);
     }
 
     // ---------------------------------------------------------------
-    //  Tests de validacion: titulo vacio
+    //  Tests for validation: empty title
     // ---------------------------------------------------------------
 
-    public function testCrearTareaRechazaTituloVacio(): void
+    public function testCreateTaskRejectsEmptyTitle(): void
     {
         $this->expectException(ValidationException::class);
-        $this->expectExceptionMessage('El titulo de la tarea no puede estar vacio');
+        $this->expectExceptionMessage('Task title cannot be empty');
 
-        $this->service->crearTarea(
-            titulo: '',
-            descripcion: 'Tiene descripcion pero no titulo',
-            prioridad: 'alta',
+        $this->service->createTask(
+            title: '',
+            description: 'Tiene descripcion pero no titulo',
+            priority: 'high',
         );
     }
 
-    public function testCrearTareaRechazaTituloSoloEspacios(): void
+    public function testCreateTaskRejectsWhitespaceOnlyTitle(): void
     {
         $this->expectException(ValidationException::class);
-        $this->expectExceptionMessage('El titulo de la tarea no puede estar vacio');
+        $this->expectExceptionMessage('Task title cannot be empty');
 
-        $this->service->crearTarea(
-            titulo: '     ',
-            descripcion: '',
-            prioridad: 'media',
+        $this->service->createTask(
+            title: '     ',
+            description: '',
+            priority: 'medium',
         );
     }
 
-    public function testCrearTareaValidacionTituloVacioTieneCampoCorrecto(): void
+    public function testCreateTaskEmptyTitleHasCorrectField(): void
     {
         try {
-            $this->service->crearTarea('', '', 'alta');
+            $this->service->createTask('', '', 'high');
             $this->fail('Deberia haber lanzado ValidationException');
         } catch (ValidationException $e) {
-            $this->assertSame('titulo', $e->campo);
-            $this->assertSame(ValidationException::ERROR_CAMPO_VACIO, $e->getCode());
+            $this->assertSame('title', $e->field);
+            $this->assertSame(ValidationException::ERROR_EMPTY_FIELD, $e->getCode());
         }
     }
 
     // ---------------------------------------------------------------
-    //  Tests de validacion: titulo demasiado largo
+    //  Tests for validation: title too long
     // ---------------------------------------------------------------
 
-    public function testCrearTareaRechazaTituloMayorA100Caracteres(): void
+    public function testCreateTaskRejectsTitleOver100Characters(): void
     {
-        $tituloLargo = str_repeat('a', 101);
+        $longTitle = str_repeat('a', 101);
 
         $this->expectException(ValidationException::class);
-        $this->expectExceptionMessage('El titulo no puede superar los 100 caracteres');
+        $this->expectExceptionMessage('Title cannot exceed 100 characters');
 
-        $this->service->crearTarea(
-            titulo: $tituloLargo,
-            descripcion: '',
-            prioridad: 'alta',
+        $this->service->createTask(
+            title: $longTitle,
+            description: '',
+            priority: 'high',
         );
     }
 
-    public function testCrearTareaAceptaTituloDe100Caracteres(): void
+    public function testCreateTaskAccepts100CharacterTitle(): void
     {
-        $tituloExacto = str_repeat('x', 100);
+        $exactTitle = str_repeat('x', 100);
 
-        $task = $this->service->crearTarea(
-            titulo: $tituloExacto,
-            descripcion: '',
-            prioridad: 'media',
+        $task = $this->service->createTask(
+            title: $exactTitle,
+            description: '',
+            priority: 'medium',
         );
 
-        $this->assertSame(100, mb_strlen($task->titulo));
+        $this->assertSame(100, mb_strlen($task->title));
     }
 
     // ---------------------------------------------------------------
-    //  Tests de validacion: prioridad invalida
+    //  Tests for validation: invalid priority
     // ---------------------------------------------------------------
 
-    public function testCrearTareaRechazaPrioridadInvalida(): void
+    public function testCreateTaskRejectsInvalidPriority(): void
     {
         $this->expectException(ValidationException::class);
-        $this->expectExceptionMessage('Prioridad invalida');
+        $this->expectExceptionMessage('Invalid priority');
 
-        $this->service->crearTarea(
-            titulo: 'Tarea con prioridad invalida',
-            descripcion: '',
-            prioridad: 'urgente',
+        $this->service->createTask(
+            title: 'Tarea con prioridad invalida',
+            description: '',
+            priority: 'urgente',
         );
     }
 
-    public function testCrearTareaRechazaPrioridadVacia(): void
+    public function testCreateTaskRejectsEmptyPriority(): void
     {
         $this->expectException(ValidationException::class);
 
-        $this->service->crearTarea(
-            titulo: 'Tarea sin prioridad',
-            descripcion: '',
-            prioridad: '',
+        $this->service->createTask(
+            title: 'Tarea sin prioridad',
+            description: '',
+            priority: '',
         );
     }
 
-    public function testCrearTareaValidacionPrioridadTieneCampoCorrecto(): void
+    public function testCreateTaskPriorityValidationHasCorrectField(): void
     {
         try {
-            $this->service->crearTarea('Tarea', '', 'inexistente');
+            $this->service->createTask('Tarea', '', 'inexistente');
             $this->fail('Deberia haber lanzado ValidationException');
         } catch (ValidationException $e) {
-            $this->assertSame('prioridad', $e->campo);
-            $this->assertSame(ValidationException::ERROR_PRIORIDAD_INVALIDA, $e->getCode());
+            $this->assertSame('priority', $e->field);
+            $this->assertSame(ValidationException::ERROR_INVALID_PRIORITY, $e->getCode());
         }
     }
 
     // ---------------------------------------------------------------
-    //  Tests de completarTarea
+    //  Tests for completeTask
     // ---------------------------------------------------------------
 
-    public function testCompletarTareaPendiente(): void
+    public function testCompletePendingTask(): void
     {
-        $creada = $this->service->crearTarea('Tarea por completar', '', 'alta');
+        $created = $this->service->createTask('Tarea por completar', '', 'high');
 
-        $completada = $this->service->completarTarea($creada->id);
+        $completed = $this->service->completeTask($created->id);
 
-        $this->assertSame(Status::Completada, $completada->estado);
-        $this->assertNotNull($completada->fechaCompletada);
+        $this->assertSame(Status::Completed, $completed->status);
+        $this->assertNotNull($completed->completedAt);
     }
 
-    public function testCompletarTareaYaCompletadaLanzaExcepcion(): void
+    public function testCompleteAlreadyCompletedTaskThrowsException(): void
     {
-        $creada = $this->service->crearTarea('Tarea doble completar', '', 'media');
-        $this->service->completarTarea($creada->id);
+        $created = $this->service->createTask('Tarea doble completar', '', 'medium');
+        $this->service->completeTask($created->id);
 
         $this->expectException(ValidationException::class);
-        $this->expectExceptionMessage('ya esta completada');
+        $this->expectExceptionMessage('already completed');
 
-        $this->service->completarTarea($creada->id);
+        $this->service->completeTask($created->id);
     }
 
-    public function testCompletarTareaConIdString(): void
+    public function testCompleteTaskWithStringId(): void
     {
-        $creada = $this->service->crearTarea('Tarea id string', '', 'baja');
+        $created = $this->service->createTask('Tarea id string', '', 'low');
 
-        $completada = $this->service->completarTarea((string) $creada->id);
+        $completed = $this->service->completeTask((string) $created->id);
 
-        $this->assertSame(Status::Completada, $completada->estado);
+        $this->assertSame(Status::Completed, $completed->status);
     }
 
     // ---------------------------------------------------------------
-    //  Tests de buscarTareas
+    //  Tests for searchTasks
     // ---------------------------------------------------------------
 
-    public function testBuscarTareasConPalabraClave(): void
+    public function testSearchTasksWithKeyword(): void
     {
-        $this->service->crearTarea('Comprar leche', 'En el supermercado', 'alta');
-        $this->service->crearTarea('Comprar pan', 'En la panaderia', 'media');
-        $this->service->crearTarea('Estudiar PHP', 'Repasar enums', 'baja');
+        $this->service->createTask('Comprar leche', 'En el supermercado', 'high');
+        $this->service->createTask('Comprar pan', 'En la panaderia', 'medium');
+        $this->service->createTask('Estudiar PHP', 'Repasar enums', 'low');
 
-        $resultados = $this->service->buscarTareas('Comprar');
+        $results = $this->service->searchTasks('Comprar');
 
-        $this->assertCount(2, $resultados);
+        $this->assertCount(2, $results);
     }
 
-    public function testBuscarTareasConPalabraClaveVaciaLanzaExcepcion(): void
+    public function testSearchTasksWithEmptyKeywordThrowsException(): void
     {
         $this->expectException(ValidationException::class);
-        $this->expectExceptionMessage('La palabra clave de busqueda no puede estar vacia');
+        $this->expectExceptionMessage('Search keyword cannot be empty');
 
-        $this->service->buscarTareas('');
+        $this->service->searchTasks('');
     }
 
-    public function testBuscarTareasConSoloEspaciosLanzaExcepcion(): void
+    public function testSearchTasksWithOnlySpacesThrowsException(): void
     {
         $this->expectException(ValidationException::class);
 
-        $this->service->buscarTareas('   ');
+        $this->service->searchTasks('   ');
     }
 
-    public function testBuscarTareasPorDescripcion(): void
+    public function testSearchTasksByDescription(): void
     {
-        $this->service->crearTarea('Tarea 1', 'Comprar material de oficina', 'alta');
-        $this->service->crearTarea('Tarea 2', 'Revisar documentos', 'media');
+        $this->service->createTask('Tarea 1', 'Comprar material de oficina', 'high');
+        $this->service->createTask('Tarea 2', 'Revisar documentos', 'medium');
 
-        $resultados = $this->service->buscarTareas('oficina');
+        $results = $this->service->searchTasks('oficina');
 
-        $this->assertCount(1, $resultados);
-        $this->assertSame('Tarea 1', $resultados[0]->titulo);
+        $this->assertCount(1, $results);
+        $this->assertSame('Tarea 1', $results[0]->title);
     }
 
-    public function testBuscarTareasSinResultados(): void
+    public function testSearchTasksNoResults(): void
     {
-        $this->service->crearTarea('Estudiar PHP', '', 'alta');
+        $this->service->createTask('Estudiar PHP', '', 'high');
 
-        $resultados = $this->service->buscarTareas('Python');
+        $results = $this->service->searchTasks('Python');
 
-        $this->assertCount(0, $resultados);
+        $this->assertCount(0, $results);
     }
 
     // ---------------------------------------------------------------
-    //  Tests de listarTareas
+    //  Tests for listTasks
     // ---------------------------------------------------------------
 
-    public function testListarTodasLasTareas(): void
+    public function testListAllTasks(): void
     {
-        $this->service->crearTarea('Tarea 1', '', 'alta');
-        $this->service->crearTarea('Tarea 2', '', 'media');
+        $this->service->createTask('Tarea 1', '', 'high');
+        $this->service->createTask('Tarea 2', '', 'medium');
 
-        $tareas = $this->service->listarTareas('todas');
+        $tasks = $this->service->listTasks('all');
 
-        $this->assertCount(2, $tareas);
+        $this->assertCount(2, $tasks);
     }
 
-    public function testListarTareasPendientes(): void
+    public function testListPendingTasks(): void
     {
-        $tarea = $this->service->crearTarea('Tarea pendiente', '', 'alta');
-        $this->service->crearTarea('Tarea completar', '', 'media');
-        $this->service->completarTarea(2);
+        $task = $this->service->createTask('Tarea pendiente', '', 'high');
+        $this->service->createTask('Tarea completar', '', 'medium');
+        $this->service->completeTask(2);
 
-        $pendientes = $this->service->listarTareas('pendiente');
+        $pending = $this->service->listTasks('pending');
 
-        $this->assertCount(1, $pendientes);
-        $this->assertSame(Status::Pendiente, $pendientes[0]->estado);
+        $this->assertCount(1, $pending);
+        $this->assertSame(Status::Pending, $pending[0]->status);
     }
 
-    public function testListarTareasCompletadas(): void
+    public function testListCompletedTasks(): void
     {
-        $this->service->crearTarea('Tarea 1', '', 'alta');
-        $this->service->crearTarea('Tarea 2', '', 'media');
-        $this->service->completarTarea(1);
+        $this->service->createTask('Tarea 1', '', 'high');
+        $this->service->createTask('Tarea 2', '', 'medium');
+        $this->service->completeTask(1);
 
-        $completadas = $this->service->listarTareas('completada');
+        $completed = $this->service->listTasks('completed');
 
-        $this->assertCount(1, $completadas);
-        $this->assertSame(Status::Completada, $completadas[0]->estado);
+        $this->assertCount(1, $completed);
+        $this->assertSame(Status::Completed, $completed[0]->status);
     }
 
-    public function testListarTareasConFiltroInvalidoLanzaExcepcion(): void
+    public function testListTasksWithInvalidFilterThrowsException(): void
     {
         $this->expectException(ValidationException::class);
-        $this->expectExceptionMessage('Filtro de estado invalido');
+        $this->expectExceptionMessage('Invalid status filter');
 
-        $this->service->listarTareas('cancelada');
+        $this->service->listTasks('cancelada');
     }
 
     // ---------------------------------------------------------------
-    //  Tests de eliminarTarea
+    //  Tests for deleteTask
     // ---------------------------------------------------------------
 
-    public function testEliminarTareaExistente(): void
+    public function testDeleteExistingTask(): void
     {
-        $this->service->crearTarea('Tarea a eliminar', '', 'alta');
+        $this->service->createTask('Tarea a eliminar', '', 'high');
 
-        $resultado = $this->service->eliminarTarea(1);
+        $result = $this->service->deleteTask(1);
 
-        $this->assertTrue($resultado);
+        $this->assertTrue($result);
 
         // Verificar que la lista esta vacia
-        $tareas = $this->service->listarTareas('todas');
-        $this->assertCount(0, $tareas);
+        $tasks = $this->service->listTasks('all');
+        $this->assertCount(0, $tasks);
     }
 
     // ---------------------------------------------------------------
-    //  Tests de obtenerEstadisticas
+    //  Tests for getStatistics
     // ---------------------------------------------------------------
 
-    public function testObtenerEstadisticasConTareas(): void
+    public function testGetStatisticsWithTasks(): void
     {
-        $this->service->crearTarea('Alta 1', '', 'alta');
-        $this->service->crearTarea('Media 1', '', 'media');
-        $this->service->crearTarea('Baja 1', '', 'baja');
-        $this->service->completarTarea(1);
+        $this->service->createTask('Alta 1', '', 'high');
+        $this->service->createTask('Media 1', '', 'medium');
+        $this->service->createTask('Baja 1', '', 'low');
+        $this->service->completeTask(1);
 
-        $stats = $this->service->obtenerEstadisticas();
+        $stats = $this->service->getStatistics();
 
         $this->assertSame(3, $stats['total']);
-        $this->assertSame(1, $stats['completadas']);
-        $this->assertSame(2, $stats['pendientes']);
-        $this->assertSame(1, $stats['por_prioridad']['alta']);
-        $this->assertSame(1, $stats['por_prioridad']['media']);
-        $this->assertSame(1, $stats['por_prioridad']['baja']);
+        $this->assertSame(1, $stats['completed']);
+        $this->assertSame(2, $stats['pending']);
+        $this->assertSame(1, $stats['by_priority']['high']);
+        $this->assertSame(1, $stats['by_priority']['medium']);
+        $this->assertSame(1, $stats['by_priority']['low']);
     }
 
-    public function testObtenerEstadisticasSinTareas(): void
+    public function testGetStatisticsWithoutTasks(): void
     {
-        $stats = $this->service->obtenerEstadisticas();
+        $stats = $this->service->getStatistics();
 
         $this->assertSame(0, $stats['total']);
-        $this->assertSame(0, $stats['completadas']);
-        $this->assertSame(0, $stats['pendientes']);
-        $this->assertSame(0, $stats['por_prioridad']['alta']);
-        $this->assertSame(0, $stats['por_prioridad']['media']);
-        $this->assertSame(0, $stats['por_prioridad']['baja']);
+        $this->assertSame(0, $stats['completed']);
+        $this->assertSame(0, $stats['pending']);
+        $this->assertSame(0, $stats['by_priority']['high']);
+        $this->assertSame(0, $stats['by_priority']['medium']);
+        $this->assertSame(0, $stats['by_priority']['low']);
     }
 
     // ---------------------------------------------------------------
-    //  Tests de obtenerTarea()
+    //  Tests for getTask()
     // ---------------------------------------------------------------
 
-    public function testObtenerTareaPorId(): void
+    public function testGetTaskById(): void
     {
-        $creada = $this->service->crearTarea(
-            titulo: 'Tarea para obtener',
-            descripcion: 'Descripcion de prueba',
-            prioridad: 'alta',
+        $created = $this->service->createTask(
+            title: 'Tarea para obtener',
+            description: 'Descripcion de prueba',
+            priority: 'high',
         );
 
-        $obtenida = $this->service->obtenerTarea($creada->id);
+        $retrieved = $this->service->getTask($created->id);
 
-        $this->assertSame($creada->id, $obtenida->id);
-        $this->assertSame('Tarea para obtener', $obtenida->titulo);
-        $this->assertSame('Descripcion de prueba', $obtenida->descripcion);
-        $this->assertSame(Priority::Alta, $obtenida->prioridad);
+        $this->assertSame($created->id, $retrieved->id);
+        $this->assertSame('Tarea para obtener', $retrieved->title);
+        $this->assertSame('Descripcion de prueba', $retrieved->description);
+        $this->assertSame(Priority::High, $retrieved->priority);
     }
 
-    public function testObtenerTareaPorIdString(): void
+    public function testGetTaskByStringId(): void
     {
-        $creada = $this->service->crearTarea('Tarea string id', '', 'media');
+        $created = $this->service->createTask('Tarea string id', '', 'medium');
 
-        $obtenida = $this->service->obtenerTarea((string) $creada->id);
+        $retrieved = $this->service->getTask((string) $created->id);
 
-        $this->assertSame($creada->id, $obtenida->id);
+        $this->assertSame($created->id, $retrieved->id);
     }
 
-    public function testObtenerTareaInexistenteLanzaExcepcion(): void
+    public function testGetNonExistentTaskThrowsException(): void
     {
         $this->expectException(NotFoundException::class);
 
-        $this->service->obtenerTarea(999);
+        $this->service->getTask(999);
     }
 
-    public function testObtenerTareaConIdInvalidoLanzaExcepcion(): void
+    public function testGetTaskWithInvalidIdThrowsException(): void
     {
         $this->expectException(ValidationException::class);
 
-        $this->service->obtenerTarea('abc');
+        $this->service->getTask('abc');
     }
 
-    public function testObtenerTareaConIdCeroLanzaExcepcion(): void
+    public function testGetTaskWithZeroIdThrowsException(): void
     {
         $this->expectException(ValidationException::class);
 
-        $this->service->obtenerTarea(0);
+        $this->service->getTask(0);
     }
 
     // ---------------------------------------------------------------
-    //  Tests de actualizarTarea()
+    //  Tests for updateTask()
     // ---------------------------------------------------------------
 
-    public function testActualizarTareaTitulo(): void
+    public function testUpdateTaskTitle(): void
     {
-        $creada = $this->service->crearTarea('Titulo original', 'Desc', 'alta');
+        $created = $this->service->createTask('Titulo original', 'Desc', 'high');
 
-        $actualizada = $this->service->actualizarTarea(
-            id: $creada->id,
-            titulo: 'Titulo modificado',
+        $updated = $this->service->updateTask(
+            id: $created->id,
+            title: 'Titulo modificado',
         );
 
-        $this->assertSame('Titulo modificado', $actualizada->titulo);
+        $this->assertSame('Titulo modificado', $updated->title);
         // Las demas propiedades no cambian
-        $this->assertSame('Desc', $actualizada->descripcion);
-        $this->assertSame(Priority::Alta, $actualizada->prioridad);
+        $this->assertSame('Desc', $updated->description);
+        $this->assertSame(Priority::High, $updated->priority);
     }
 
-    public function testActualizarTareaDescripcion(): void
+    public function testUpdateTaskDescription(): void
     {
-        $creada = $this->service->crearTarea('Titulo', 'Desc original', 'media');
+        $created = $this->service->createTask('Titulo', 'Desc original', 'medium');
 
-        $actualizada = $this->service->actualizarTarea(
-            id: $creada->id,
-            descripcion: 'Desc modificada',
+        $updated = $this->service->updateTask(
+            id: $created->id,
+            description: 'Desc modificada',
         );
 
-        $this->assertSame('Desc modificada', $actualizada->descripcion);
-        $this->assertSame('Titulo', $actualizada->titulo);
+        $this->assertSame('Desc modificada', $updated->description);
+        $this->assertSame('Titulo', $updated->title);
     }
 
-    public function testActualizarTareaPrioridad(): void
+    public function testUpdateTaskPriority(): void
     {
-        $creada = $this->service->crearTarea('Titulo', '', 'alta');
+        $created = $this->service->createTask('Titulo', '', 'high');
 
-        $actualizada = $this->service->actualizarTarea(
-            id: $creada->id,
-            prioridad: 'baja',
+        $updated = $this->service->updateTask(
+            id: $created->id,
+            priority: 'low',
         );
 
-        $this->assertSame(Priority::Baja, $actualizada->prioridad);
+        $this->assertSame(Priority::Low, $updated->priority);
     }
 
-    public function testActualizarTareaSinCambiosRetornaTareaOriginal(): void
+    public function testUpdateTaskWithNoChangesReturnsOriginal(): void
     {
-        $creada = $this->service->crearTarea('Titulo', 'Desc', 'alta');
+        $created = $this->service->createTask('Titulo', 'Desc', 'high');
 
-        $sinCambios = $this->service->actualizarTarea(id: $creada->id);
+        $unchanged = $this->service->updateTask(id: $created->id);
 
-        $this->assertSame($creada->id, $sinCambios->id);
-        $this->assertSame('Titulo', $sinCambios->titulo);
+        $this->assertSame($created->id, $unchanged->id);
+        $this->assertSame('Titulo', $unchanged->title);
     }
 
-    public function testActualizarTareaConTituloVacioLanzaExcepcion(): void
+    public function testUpdateTaskWithEmptyTitleThrowsException(): void
     {
-        $creada = $this->service->crearTarea('Titulo valido', '', 'alta');
+        $created = $this->service->createTask('Titulo valido', '', 'high');
 
         $this->expectException(ValidationException::class);
 
-        $this->service->actualizarTarea(
-            id: $creada->id,
-            titulo: '',
+        $this->service->updateTask(
+            id: $created->id,
+            title: '',
         );
     }
 
-    public function testActualizarTareaConPrioridadInvalidaLanzaExcepcion(): void
+    public function testUpdateTaskWithInvalidPriorityThrowsException(): void
     {
-        $creada = $this->service->crearTarea('Titulo', '', 'alta');
+        $created = $this->service->createTask('Titulo', '', 'high');
 
         $this->expectException(ValidationException::class);
 
-        $this->service->actualizarTarea(
-            id: $creada->id,
-            prioridad: 'urgente',
+        $this->service->updateTask(
+            id: $created->id,
+            priority: 'urgente',
         );
     }
 
-    public function testActualizarTareaInexistenteLanzaExcepcion(): void
+    public function testUpdateNonExistentTaskThrowsException(): void
     {
         $this->expectException(NotFoundException::class);
 
-        $this->service->actualizarTarea(
+        $this->service->updateTask(
             id: 999,
-            titulo: 'Nuevo titulo',
+            title: 'Nuevo titulo',
         );
     }
 
     // ---------------------------------------------------------------
-    //  Tests de crearTarea con fechaVencimiento
+    //  Tests for createTask with dueDate
     // ---------------------------------------------------------------
 
-    public function testCrearTareaConFechaVencimiento(): void
+    public function testCreateTaskWithDueDate(): void
     {
-        $task = $this->service->crearTarea(
-            titulo: 'Tarea con vencimiento',
-            descripcion: 'Debe completarse pronto',
-            prioridad: 'alta',
-            fechaVencimiento: '2026-12-31',
+        $task = $this->service->createTask(
+            title: 'Tarea con vencimiento',
+            description: 'Debe completarse pronto',
+            priority: 'high',
+            dueDate: '2026-12-31',
         );
 
-        $this->assertSame('2026-12-31', $task->fechaVencimiento);
+        $this->assertSame('2026-12-31', $task->dueDate);
     }
 
-    public function testCrearTareaSinFechaVencimiento(): void
+    public function testCreateTaskWithoutDueDate(): void
     {
-        $task = $this->service->crearTarea(
-            titulo: 'Tarea sin fecha',
-            descripcion: '',
-            prioridad: 'media',
+        $task = $this->service->createTask(
+            title: 'Tarea sin fecha',
+            description: '',
+            priority: 'medium',
         );
 
-        $this->assertNull($task->fechaVencimiento);
+        $this->assertNull($task->dueDate);
     }
 
-    public function testCrearTareaConFechaVencimientoFormatoInvalido(): void
+    public function testCreateTaskWithInvalidDueDateFormat(): void
     {
         $this->expectException(ValidationException::class);
 
-        $this->service->crearTarea(
-            titulo: 'Tarea con fecha invalida',
-            descripcion: '',
-            prioridad: 'alta',
-            fechaVencimiento: '31/12/2026',
+        $this->service->createTask(
+            title: 'Tarea con fecha invalida',
+            description: '',
+            priority: 'high',
+            dueDate: '31/12/2026',
         );
     }
 
-    public function testCrearTareaConFechaVencimientoVaciaEsNull(): void
+    public function testCreateTaskWithEmptyDueDateIsNull(): void
     {
-        $task = $this->service->crearTarea(
-            titulo: 'Tarea fecha vacia',
-            descripcion: '',
-            prioridad: 'media',
-            fechaVencimiento: '',
+        $task = $this->service->createTask(
+            title: 'Tarea fecha vacia',
+            description: '',
+            priority: 'medium',
+            dueDate: '',
         );
 
-        $this->assertNull($task->fechaVencimiento);
+        $this->assertNull($task->dueDate);
     }
 
     // ---------------------------------------------------------------
-    //  Tests de actualizarTarea con fechaVencimiento
+    //  Tests for updateTask with dueDate
     // ---------------------------------------------------------------
 
-    public function testActualizarTareaConFechaVencimiento(): void
+    public function testUpdateTaskWithDueDate(): void
     {
-        $creada = $this->service->crearTarea('Titulo', '', 'alta');
+        $created = $this->service->createTask('Titulo', '', 'high');
 
-        $actualizada = $this->service->actualizarTarea(
-            id: $creada->id,
-            fechaVencimiento: '2026-12-25',
+        $updated = $this->service->updateTask(
+            id: $created->id,
+            dueDate: '2026-12-25',
         );
 
-        $this->assertSame('2026-12-25', $actualizada->fechaVencimiento);
+        $this->assertSame('2026-12-25', $updated->dueDate);
     }
 
-    public function testActualizarTareaEliminarFechaVencimiento(): void
+    public function testUpdateTaskRemoveDueDate(): void
     {
-        $creada = $this->service->crearTarea(
-            titulo: 'Titulo',
-            descripcion: '',
-            prioridad: 'alta',
-            fechaVencimiento: '2026-12-25',
+        $created = $this->service->createTask(
+            title: 'Titulo',
+            description: '',
+            priority: 'high',
+            dueDate: '2026-12-25',
         );
 
         // Enviar cadena vacia debe limpiar la fecha de vencimiento
-        $actualizada = $this->service->actualizarTarea(
-            id: $creada->id,
-            fechaVencimiento: '',
+        $updated = $this->service->updateTask(
+            id: $created->id,
+            dueDate: '',
         );
 
-        $this->assertNull($actualizada->fechaVencimiento);
+        $this->assertNull($updated->dueDate);
     }
 
-    public function testActualizarTareaConFechaVencimientoInvalida(): void
+    public function testUpdateTaskWithInvalidDueDate(): void
     {
-        $creada = $this->service->crearTarea('Titulo', '', 'alta');
+        $created = $this->service->createTask('Titulo', '', 'high');
 
         $this->expectException(ValidationException::class);
 
-        $this->service->actualizarTarea(
-            id: $creada->id,
-            fechaVencimiento: 'no-es-fecha',
+        $this->service->updateTask(
+            id: $created->id,
+            dueDate: 'no-es-fecha',
         );
     }
 
     // ---------------------------------------------------------------
-    //  Tests de listarTareas con paginacion
+    //  Tests for listTasks with pagination
     // ---------------------------------------------------------------
 
-    public function testListarTareasPaginadoRetornaMetadatos(): void
+    public function testListTasksPaginatedReturnsMetadata(): void
     {
         for ($i = 1; $i <= 5; $i++) {
-            $this->service->crearTarea("Tarea {$i}", '', 'media');
+            $this->service->createTask("Tarea {$i}", '', 'medium');
         }
 
-        $resultado = $this->service->listarTareas(
-            filtro: 'todas',
+        $result = $this->service->listTasks(
+            filter: 'all',
             page: 1,
             perPage: 2,
         );
 
-        $this->assertArrayHasKey('tareas', $resultado);
-        $this->assertArrayHasKey('total', $resultado);
-        $this->assertArrayHasKey('page', $resultado);
-        $this->assertArrayHasKey('per_page', $resultado);
-        $this->assertArrayHasKey('total_pages', $resultado);
+        $this->assertArrayHasKey('tasks', $result);
+        $this->assertArrayHasKey('total', $result);
+        $this->assertArrayHasKey('page', $result);
+        $this->assertArrayHasKey('per_page', $result);
+        $this->assertArrayHasKey('total_pages', $result);
 
-        $this->assertSame(5, $resultado['total']);
-        $this->assertSame(1, $resultado['page']);
-        $this->assertSame(2, $resultado['per_page']);
-        $this->assertSame(3, $resultado['total_pages']);
-        $this->assertCount(2, $resultado['tareas']);
+        $this->assertSame(5, $result['total']);
+        $this->assertSame(1, $result['page']);
+        $this->assertSame(2, $result['per_page']);
+        $this->assertSame(3, $result['total_pages']);
+        $this->assertCount(2, $result['tasks']);
     }
 
-    public function testListarTareasSinPaginacion(): void
+    public function testListTasksWithoutPagination(): void
     {
-        $this->service->crearTarea('Tarea 1', '', 'alta');
-        $this->service->crearTarea('Tarea 2', '', 'media');
+        $this->service->createTask('Tarea 1', '', 'high');
+        $this->service->createTask('Tarea 2', '', 'medium');
 
         // page=0 retorna array simple (compatibilidad)
-        $resultado = $this->service->listarTareas(filtro: 'todas', page: 0);
+        $result = $this->service->listTasks(filter: 'all', page: 0);
 
-        $this->assertIsArray($resultado);
+        $this->assertIsArray($result);
         // Array simple, no estructura paginada
-        $this->assertArrayNotHasKey('tareas', $resultado);
-        $this->assertCount(2, $resultado);
+        $this->assertArrayNotHasKey('tasks', $result);
+        $this->assertCount(2, $result);
     }
 
     // ---------------------------------------------------------------
-    //  Tests de buscarTareas con paginacion
+    //  Tests for searchTasks with pagination
     // ---------------------------------------------------------------
 
-    public function testBuscarTareasPaginado(): void
+    public function testSearchTasksPaginated(): void
     {
         for ($i = 1; $i <= 5; $i++) {
-            $this->service->crearTarea("PHP tarea {$i}", '', 'media');
+            $this->service->createTask("PHP tarea {$i}", '', 'medium');
         }
 
-        $resultado = $this->service->buscarTareas(
+        $result = $this->service->searchTasks(
             keyword: 'PHP',
             page: 1,
             perPage: 2,
         );
 
-        $this->assertArrayHasKey('tareas', $resultado);
-        $this->assertArrayHasKey('total', $resultado);
-        $this->assertSame(5, $resultado['total']);
-        $this->assertCount(2, $resultado['tareas']);
+        $this->assertArrayHasKey('tasks', $result);
+        $this->assertArrayHasKey('total', $result);
+        $this->assertSame(5, $result['total']);
+        $this->assertCount(2, $result['tasks']);
     }
 
     // ---------------------------------------------------------------
-    //  Tests de formatearEstadisticas
+    //  Tests for formatStatistics
     // ---------------------------------------------------------------
 
-    public function testFormatearEstadisticasConDatos(): void
+    public function testFormatStatisticsWithData(): void
     {
         $stats = [
             'total' => 10,
-            'completadas' => 5,
-            'pendientes' => 5,
-            'por_prioridad' => [
-                'alta' => 3,
-                'media' => 4,
-                'baja' => 3,
+            'completed' => 5,
+            'pending' => 5,
+            'by_priority' => [
+                'high' => 3,
+                'medium' => 4,
+                'low' => 3,
             ],
         ];
 
-        $texto = $this->service->formatearEstadisticas($stats);
+        $texto = $this->service->formatStatistics($stats);
 
         $this->assertStringContainsString('ESTADISTICAS', $texto);
         $this->assertStringContainsString('10', $texto);
         $this->assertStringContainsString('50', $texto); // 50% porcentaje
     }
 
-    public function testFormatearEstadisticasSinTareas(): void
+    public function testFormatStatisticsWithoutTasks(): void
     {
         $stats = [
             'total' => 0,
-            'completadas' => 0,
-            'pendientes' => 0,
-            'por_prioridad' => [
-                'alta' => 0,
-                'media' => 0,
-                'baja' => 0,
+            'completed' => 0,
+            'pending' => 0,
+            'by_priority' => [
+                'high' => 0,
+                'medium' => 0,
+                'low' => 0,
             ],
         ];
 
-        $texto = $this->service->formatearEstadisticas($stats);
+        $texto = $this->service->formatStatistics($stats);
 
         $this->assertStringContainsString('ESTADISTICAS', $texto);
+    }
+
+    // --- Edge cases: pagination bounds ---
+
+    public function testListTasksWithNegativePageClampedToOne(): void
+    {
+        $this->service->createTask('Task 1', '', 'medium');
+
+        $result = $this->service->listTasks(
+            filter: 'all',
+            page: -5,
+            perPage: 20,
+        );
+
+        $this->assertArrayHasKey('page', $result);
+        $this->assertSame(1, $result['page']);
+    }
+
+    public function testListTasksPerPageClampedTo100(): void
+    {
+        $this->service->createTask('Task 1', '', 'medium');
+
+        $result = $this->service->listTasks(
+            filter: 'all',
+            page: 1,
+            perPage: 500,
+        );
+
+        $this->assertSame(100, $result['per_page']);
+    }
+
+    public function testListTasksPerPageClampedToOneForZero(): void
+    {
+        $this->service->createTask('Task 1', '', 'medium');
+
+        $result = $this->service->listTasks(
+            filter: 'all',
+            page: 1,
+            perPage: 0,
+        );
+
+        $this->assertSame(1, $result['per_page']);
+    }
+
+    // --- Edge cases: unicode titles ---
+
+    public function testCreateTaskWithUnicodeTitle(): void
+    {
+        $title = str_repeat("\u{00E9}", 100);
+        $task = $this->service->createTask($title, '', 'high');
+
+        $this->assertSame(100, mb_strlen($task->title));
+    }
+
+    public function testCreateTaskWith101UnicodeCharsRejects(): void
+    {
+        $title = str_repeat("\u{00E9}", 101);
+
+        $this->expectException(\MiniProject\ValidationException::class);
+        $this->expectExceptionMessage('cannot exceed 100 characters');
+
+        $this->service->createTask($title, '', 'high');
+    }
+
+    public function testCompleteTaskWithNegativeIdThrows(): void
+    {
+        $this->expectException(\MiniProject\ValidationException::class);
+
+        $this->service->completeTask(-1);
     }
 }

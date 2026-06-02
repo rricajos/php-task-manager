@@ -8,58 +8,57 @@ use PDO;
 use PDOException;
 
 /**
- * Conexion a base de datos usando el patron Singleton.
+ * Conexión a base de datos usando el patrón Singleton.
+ * Database connection using the Singleton pattern.
  *
- * Garantiza una unica instancia de conexion PDO a SQLite durante
- * todo el ciclo de vida de la aplicacion. Crea las tablas de usuarios
- * y tareas automaticamente si no existen.
+ * Garantiza una única instancia de conexión PDO a SQLite durante
+ * todo el ciclo de vida de la aplicación. Crea las tablas de usuarios
+ * y tareas automáticamente si no existen.
  *
- * Patron: Singleton
- * Caracteristicas PHP 8: constructor promotion, readonly, match
+ * Ensures a single PDO connection instance to SQLite throughout
+ * the application lifecycle. Automatically creates user and task
+ * tables if they don't exist.
+ *
+ * Pattern: Singleton
+ * PHP 8 features: constructor promotion, readonly, match
  */
 class Database
 {
-    /** Instancia unica (Singleton) */
+    /** Instancia única (Singleton) / Singleton instance */
     private static ?self $instance = null;
 
-    /** Conexion PDO a SQLite */
+    /** Conexión PDO a SQLite / PDO connection to SQLite */
     private readonly PDO $pdo;
 
     /**
-     * Constructor privado para prevenir instanciacion directa.
+     * Constructor privado para prevenir instanciación directa.
+     * Private constructor to prevent direct instantiation.
      *
-     * @param string $dbPath Ruta al archivo de base de datos SQLite
+     * @param string $dbPath Ruta al archivo SQLite / Path to the SQLite file
      */
     private function __construct(
         private readonly string $dbPath,
     ) {
         try {
-            // Asegurar que el directorio de datos exista
             $dir = dirname($this->dbPath);
             if (!is_dir($dir)) {
                 mkdir($dir, 0755, true);
             }
 
-            // Crear conexion PDO con SQLite
             $this->pdo = new PDO(
                 dsn: "sqlite:{$this->dbPath}",
             );
 
-            // Configurar PDO para lanzar excepciones en errores
             $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             $this->pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
 
-            // Habilitar claves foraneas en SQLite
             $this->pdo->exec('PRAGMA foreign_keys = ON');
-
-            // Habilitar modo WAL para mejor rendimiento concurrente
             $this->pdo->exec('PRAGMA journal_mode = WAL');
 
-            // Inicializar la estructura de la base de datos
-            $this->inicializarTablas();
+            $this->initializeTables();
         } catch (PDOException $e) {
             throw new AppException(
-                message: "Error al conectar con la base de datos: {$e->getMessage()}",
+                message: "Database connection error: {$e->getMessage()}",
                 code: AppException::ERROR_DATABASE,
                 previous: $e,
             );
@@ -67,22 +66,21 @@ class Database
     }
 
     /**
-     * Obtiene la instancia unica de la base de datos (Singleton).
+     * Obtiene la instancia única de la base de datos (Singleton).
+     * Gets the singleton Database instance.
      *
-     * @param string|null $dbPath Ruta al archivo SQLite (solo se usa en la primera llamada)
-     * @return self Instancia unica de Database
+     * @param string|null $dbPath Ruta al archivo SQLite / Path to SQLite file
+     * @return self Instancia única / Singleton instance
      */
     public static function getInstance(?string $dbPath = null): self
     {
         if (self::$instance === null) {
-            // Leer ruta desde variable de entorno con fallback
             $envPath = getenv('DB_PATH');
             $defaultPath = dirname(__DIR__) . '/data/tasks.db';
 
             if ($dbPath !== null) {
                 $path = $dbPath;
             } elseif ($envPath !== false && $envPath !== '') {
-                // Si DB_PATH es relativa, resolverla desde el directorio del proyecto
                 $path = str_starts_with($envPath, '/')
                     ? $envPath
                     : dirname(__DIR__) . '/' . $envPath;
@@ -97,9 +95,10 @@ class Database
     }
 
     /**
-     * Obtiene la conexion PDO subyacente.
+     * Obtiene la conexión PDO subyacente.
+     * Gets the underlying PDO connection.
      *
-     * @return PDO Instancia de conexion PDO
+     * @return PDO Instancia de conexión / Connection instance
      */
     public function getConnection(): PDO
     {
@@ -108,30 +107,16 @@ class Database
 
     /**
      * Crea las tablas necesarias si no existen.
+     * Creates the required tables if they don't exist.
      *
      * Se crean en orden: primero users (sin dependencias),
      * luego tasks (con FK a users).
      *
-     * Estructura de la tabla users:
-     * - id: clave primaria autoincremental
-     * - username: nombre de usuario unico
-     * - password_hash: contrasena hasheada con bcrypt
-     * - created_at: fecha de registro
-     *
-     * Estructura de la tabla tasks:
-     * - id: clave primaria autoincremental
-     * - user_id: clave foranea a users(id)
-     * - titulo: titulo de la tarea (obligatorio)
-     * - descripcion: descripcion detallada (opcional)
-     * - prioridad: alta, media o baja
-     * - estado: pendiente o completada
-     * - fecha_creacion: timestamp de creacion
-     * - fecha_completada: timestamp de cuando se completo (nullable)
-     * - fecha_vencimiento: fecha limite de la tarea (nullable)
+     * Created in order: users first (no dependencies),
+     * then tasks (with FK to users).
      */
-    private function inicializarTablas(): void
+    private function initializeTables(): void
     {
-        // Crear tabla de usuarios primero (dependencia de FK)
         $sqlUsers = <<<'SQL'
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -143,27 +128,67 @@ class Database
 
         $this->pdo->exec($sqlUsers);
 
-        // Crear tabla de tareas con FK a users
         $sqlTasks = <<<'SQL'
             CREATE TABLE IF NOT EXISTS tasks (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,
-                titulo TEXT NOT NULL,
-                descripcion TEXT DEFAULT '',
-                prioridad TEXT NOT NULL DEFAULT 'media' CHECK(prioridad IN ('alta', 'media', 'baja')),
-                estado TEXT NOT NULL DEFAULT 'pendiente' CHECK(estado IN ('pendiente', 'completada')),
-                fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP,
-                fecha_completada DATETIME DEFAULT NULL,
-                fecha_vencimiento DATE DEFAULT NULL,
-                FOREIGN KEY (user_id) REFERENCES users(id)
+                title TEXT NOT NULL,
+                description TEXT DEFAULT '',
+                priority TEXT NOT NULL DEFAULT 'medium' CHECK(priority IN ('high', 'medium', 'low')),
+                status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'completed')),
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                completed_at DATETIME DEFAULT NULL,
+                due_date DATE DEFAULT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             )
         SQL;
 
         $this->pdo->exec($sqlTasks);
+
+        $sqlTags = <<<'SQL'
+            CREATE TABLE IF NOT EXISTS tags (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                color TEXT NOT NULL DEFAULT '#6b7280',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                UNIQUE(user_id, name)
+            )
+        SQL;
+
+        $this->pdo->exec($sqlTags);
+
+        $sqlTaskTags = <<<'SQL'
+            CREATE TABLE IF NOT EXISTS task_tags (
+                task_id INTEGER NOT NULL,
+                tag_id INTEGER NOT NULL,
+                PRIMARY KEY (task_id, tag_id),
+                FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+                FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+            )
+        SQL;
+
+        $this->pdo->exec($sqlTaskTags);
+
+        $sqlRateLimits = <<<'SQL'
+            CREATE TABLE IF NOT EXISTS rate_limits (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                rate_key TEXT NOT NULL,
+                timestamp REAL NOT NULL
+            )
+        SQL;
+
+        $this->pdo->exec($sqlRateLimits);
+
+        $this->pdo->exec(
+            'CREATE INDEX IF NOT EXISTS idx_rate_limits_key_ts ON rate_limits (rate_key, timestamp)'
+        );
     }
 
     /**
-     * Resetea la instancia Singleton (util para testing).
+     * Resetea la instancia Singleton (útil para testing).
+     * Resets the Singleton instance (useful for testing).
      */
     public static function resetInstance(): void
     {
@@ -171,17 +196,19 @@ class Database
     }
 
     /**
-     * Prevenir clonacion del Singleton.
+     * Prevenir clonación del Singleton.
+     * Prevent Singleton cloning.
      */
     private function __clone(): void
     {
     }
 
     /**
-     * Prevenir deserializacion del Singleton.
+     * Prevenir deserialización del Singleton.
+     * Prevent Singleton deserialization.
      */
     public function __wakeup(): void
     {
-        throw new AppException('No se puede deserializar un Singleton');
+        throw new AppException('Cannot deserialize a Singleton');
     }
 }

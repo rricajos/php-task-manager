@@ -11,6 +11,7 @@ services:
       - JWT_SECRET=${JWT_SECRET:-super_secret_key_change_me}
       - JWT_TTL=${JWT_TTL:-86400}
       - DB_PATH=/app/data/tasks.db
+      - CORS_ORIGIN=${CORS_ORIGIN:-*}
     restart: unless-stopped
 
   cli:

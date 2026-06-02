@@ -14,11 +14,8 @@ use MiniProject\TaskService;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Tests de integracion que verifican el flujo completo de trabajo
- * desde la creacion hasta la eliminacion de tareas, pasando por
- * busqueda, filtrado y estadisticas.
- *
- * Usa base de datos SQLite en memoria para aislamiento total.
+ * Tests de integración que verifican el flujo completo de trabajo.
+ * Integration tests verifying the complete task workflow.
  *
  * @covers \MiniProject\TaskService
  * @covers \MiniProject\TaskRepository
@@ -52,454 +49,452 @@ class TaskWorkflowTest extends TestCase
     //  Test de flujo completo: crear -> buscar -> completar -> verificar -> eliminar
     // ---------------------------------------------------------------
 
-    public function testFlujoCompletoDeUnaTarea(): void
+    public function testCompleteTaskWorkflow(): void
     {
         // 1. Crear una tarea
-        $tareaCreada = $this->service->crearTarea(
-            titulo: 'Implementar autenticacion',
-            descripcion: 'Agregar login con JWT',
-            prioridad: 'alta',
+        $createdTask = $this->service->createTask(
+            title: 'Implementar autenticacion',
+            description: 'Agregar login con JWT',
+            priority: 'high',
         );
 
-        $this->assertNotNull($tareaCreada->id);
-        $this->assertSame('Implementar autenticacion', $tareaCreada->titulo);
-        $this->assertSame(Status::Pendiente, $tareaCreada->estado);
-        $this->assertNull($tareaCreada->fechaCompletada);
+        $this->assertNotNull($createdTask->id);
+        $this->assertSame('Implementar autenticacion', $createdTask->title);
+        $this->assertSame(Status::Pending, $createdTask->status);
+        $this->assertNull($createdTask->completedAt);
 
-        $idTarea = $tareaCreada->id;
+        $taskId = $createdTask->id;
 
         // 2. Buscar la tarea por ID usando el repositorio
-        $tareaEncontrada = $this->repository->findById($idTarea);
+        $foundTask = $this->repository->findById($taskId);
 
-        $this->assertSame($idTarea, $tareaEncontrada->id);
-        $this->assertSame('Implementar autenticacion', $tareaEncontrada->titulo);
-        $this->assertSame('Agregar login con JWT', $tareaEncontrada->descripcion);
-        $this->assertSame(Priority::Alta, $tareaEncontrada->prioridad);
+        $this->assertSame($taskId, $foundTask->id);
+        $this->assertSame('Implementar autenticacion', $foundTask->title);
+        $this->assertSame('Agregar login con JWT', $foundTask->description);
+        $this->assertSame(Priority::High, $foundTask->priority);
 
         // 3. Completar la tarea
-        $tareaCompletada = $this->service->completarTarea($idTarea);
+        $completedTask = $this->service->completeTask($taskId);
 
-        $this->assertSame(Status::Completada, $tareaCompletada->estado);
-        $this->assertNotNull($tareaCompletada->fechaCompletada);
+        $this->assertSame(Status::Completed, $completedTask->status);
+        $this->assertNotNull($completedTask->completedAt);
 
         // 4. Verificar que el estado persiste al volver a buscar
-        $tareaVerificada = $this->repository->findById($idTarea);
+        $verifiedTask = $this->repository->findById($taskId);
 
-        $this->assertSame(Status::Completada, $tareaVerificada->estado);
-        $this->assertNotNull($tareaVerificada->fechaCompletada);
+        $this->assertSame(Status::Completed, $verifiedTask->status);
+        $this->assertNotNull($verifiedTask->completedAt);
 
         // 5. Eliminar la tarea
-        $eliminada = $this->service->eliminarTarea($idTarea);
+        $eliminada = $this->service->deleteTask($taskId);
 
         $this->assertTrue($eliminada);
 
         // 6. Verificar que la tarea ya no existe
         $this->expectException(NotFoundException::class);
-        $this->repository->findById($idTarea);
+        $this->repository->findById($taskId);
     }
 
     // ---------------------------------------------------------------
     //  Test de busqueda
     // ---------------------------------------------------------------
 
-    public function testBusquedaEncuentraTareasCoincidentes(): void
+    public function testSearchFindsMatchingTasks(): void
     {
-        $this->service->crearTarea('Revisar codigo PHP', 'Refactorizar modulos', 'alta');
-        $this->service->crearTarea('Escribir documentacion', 'Documentar la API REST', 'media');
-        $this->service->crearTarea('Configurar CI/CD', 'Pipeline de PHP con GitHub Actions', 'baja');
-        $this->service->crearTarea('Comprar monitor', 'Para la oficina', 'baja');
+        $this->service->createTask('Revisar codigo PHP', 'Refactorizar modulos', 'high');
+        $this->service->createTask('Escribir documentacion', 'Documentar la API REST', 'medium');
+        $this->service->createTask('Configurar CI/CD', 'Pipeline de PHP con GitHub Actions', 'low');
+        $this->service->createTask('Comprar monitor', 'Para la oficina', 'low');
 
         // Buscar por palabra clave en titulo
-        $resultadosPHP = $this->service->buscarTareas('PHP');
-        $this->assertCount(2, $resultadosPHP);
+        $phpResults = $this->service->searchTasks('PHP');
+        $this->assertCount(2, $phpResults);
 
         // Buscar por palabra clave en descripcion
-        $resultadosAPI = $this->service->buscarTareas('API');
-        $this->assertCount(1, $resultadosAPI);
-        $this->assertSame('Escribir documentacion', $resultadosAPI[0]->titulo);
+        $apiResults = $this->service->searchTasks('API');
+        $this->assertCount(1, $apiResults);
+        $this->assertSame('Escribir documentacion', $apiResults[0]->title);
     }
 
-    public function testBusquedaSinCoincidenciasRetornaVacio(): void
+    public function testSearchNoMatchesReturnsEmpty(): void
     {
-        $this->service->crearTarea('Tarea de prueba', 'Descripcion simple', 'media');
+        $this->service->createTask('Tarea de prueba', 'Descripcion simple', 'medium');
 
-        $resultados = $this->service->buscarTareas('JavaScript');
+        $results = $this->service->searchTasks('JavaScript');
 
-        $this->assertCount(0, $resultados);
-        $this->assertIsArray($resultados);
+        $this->assertCount(0, $results);
+        $this->assertIsArray($results);
     }
 
-    public function testBusquedaEsCaseInsensitive(): void
+    public function testSearchIsCaseInsensitive(): void
     {
-        $this->service->crearTarea('Estudiar PHP avanzado', '', 'alta');
+        $this->service->createTask('Estudiar PHP avanzado', '', 'high');
 
         // SQLite LIKE es case-insensitive por defecto para ASCII
-        $resultados = $this->service->buscarTareas('php');
+        $results = $this->service->searchTasks('php');
 
-        $this->assertCount(1, $resultados);
+        $this->assertCount(1, $results);
     }
 
     // ---------------------------------------------------------------
     //  Tests de estadisticas
     // ---------------------------------------------------------------
 
-    public function testEstadisticasRetornanConteosCorrectos(): void
+    public function testStatisticsReturnCorrectCounts(): void
     {
         // Crear tareas con distintas prioridades
-        $this->service->crearTarea('Alta 1', '', 'alta');
-        $this->service->crearTarea('Alta 2', '', 'alta');
-        $this->service->crearTarea('Media 1', '', 'media');
-        $this->service->crearTarea('Baja 1', '', 'baja');
-        $this->service->crearTarea('Baja 2', '', 'baja');
+        $this->service->createTask('Alta 1', '', 'high');
+        $this->service->createTask('Alta 2', '', 'high');
+        $this->service->createTask('Media 1', '', 'medium');
+        $this->service->createTask('Baja 1', '', 'low');
+        $this->service->createTask('Baja 2', '', 'low');
 
         // Completar algunas
-        $this->service->completarTarea(1); // Alta 1
-        $this->service->completarTarea(3); // Media 1
+        $this->service->completeTask(1); // Alta 1
+        $this->service->completeTask(3); // Media 1
 
-        $stats = $this->service->obtenerEstadisticas();
+        $stats = $this->service->getStatistics();
 
         // Totales
         $this->assertSame(5, $stats['total']);
-        $this->assertSame(2, $stats['completadas']);
-        $this->assertSame(3, $stats['pendientes']);
+        $this->assertSame(2, $stats['completed']);
+        $this->assertSame(3, $stats['pending']);
 
         // Por prioridad
-        $this->assertSame(2, $stats['por_prioridad']['alta']);
-        $this->assertSame(1, $stats['por_prioridad']['media']);
-        $this->assertSame(2, $stats['por_prioridad']['baja']);
+        $this->assertSame(2, $stats['by_priority']['high']);
+        $this->assertSame(1, $stats['by_priority']['medium']);
+        $this->assertSame(2, $stats['by_priority']['low']);
     }
 
-    public function testEstadisticasConBaseDeDatosVacia(): void
+    public function testStatisticsWithEmptyDatabase(): void
     {
-        $stats = $this->service->obtenerEstadisticas();
+        $stats = $this->service->getStatistics();
 
         $this->assertSame(0, $stats['total']);
-        $this->assertSame(0, $stats['completadas']);
-        $this->assertSame(0, $stats['pendientes']);
-        $this->assertSame(0, $stats['por_prioridad']['alta']);
-        $this->assertSame(0, $stats['por_prioridad']['media']);
-        $this->assertSame(0, $stats['por_prioridad']['baja']);
+        $this->assertSame(0, $stats['completed']);
+        $this->assertSame(0, $stats['pending']);
+        $this->assertSame(0, $stats['by_priority']['high']);
+        $this->assertSame(0, $stats['by_priority']['medium']);
+        $this->assertSame(0, $stats['by_priority']['low']);
     }
 
-    public function testEstadisticasTodasCompletadas(): void
+    public function testStatisticsAllCompleted(): void
     {
-        $this->service->crearTarea('T1', '', 'alta');
-        $this->service->crearTarea('T2', '', 'media');
-        $this->service->completarTarea(1);
-        $this->service->completarTarea(2);
+        $this->service->createTask('T1', '', 'high');
+        $this->service->createTask('T2', '', 'medium');
+        $this->service->completeTask(1);
+        $this->service->completeTask(2);
 
-        $stats = $this->service->obtenerEstadisticas();
+        $stats = $this->service->getStatistics();
 
         $this->assertSame(2, $stats['total']);
-        $this->assertSame(2, $stats['completadas']);
-        $this->assertSame(0, $stats['pendientes']);
+        $this->assertSame(2, $stats['completed']);
+        $this->assertSame(0, $stats['pending']);
     }
 
     // ---------------------------------------------------------------
     //  Tests de filtrado por estado
     // ---------------------------------------------------------------
 
-    public function testFiltrarPorEstadoPendiente(): void
+    public function testFilterByPendingStatus(): void
     {
-        $this->service->crearTarea('Pendiente 1', '', 'alta');
-        $this->service->crearTarea('Pendiente 2', '', 'media');
-        $this->service->crearTarea('Sera completada', '', 'baja');
-        $this->service->completarTarea(3);
+        $this->service->createTask('Pendiente 1', '', 'high');
+        $this->service->createTask('Pendiente 2', '', 'medium');
+        $this->service->createTask('Sera completada', '', 'low');
+        $this->service->completeTask(3);
 
-        $pendientes = $this->service->listarTareas('pendiente');
+        $pending = $this->service->listTasks('pending');
 
-        $this->assertCount(2, $pendientes);
-        foreach ($pendientes as $tarea) {
-            $this->assertSame(Status::Pendiente, $tarea->estado);
+        $this->assertCount(2, $pending);
+        foreach ($pending as $task) {
+            $this->assertSame(Status::Pending, $task->status);
         }
     }
 
-    public function testFiltrarPorEstadoCompletada(): void
+    public function testFilterByCompletedStatus(): void
     {
-        $this->service->crearTarea('T1', '', 'alta');
-        $this->service->crearTarea('T2', '', 'media');
-        $this->service->crearTarea('T3', '', 'baja');
-        $this->service->completarTarea(1);
-        $this->service->completarTarea(2);
+        $this->service->createTask('T1', '', 'high');
+        $this->service->createTask('T2', '', 'medium');
+        $this->service->createTask('T3', '', 'low');
+        $this->service->completeTask(1);
+        $this->service->completeTask(2);
 
-        $completadas = $this->service->listarTareas('completada');
+        $completed = $this->service->listTasks('completed');
 
-        $this->assertCount(2, $completadas);
-        foreach ($completadas as $tarea) {
-            $this->assertSame(Status::Completada, $tarea->estado);
+        $this->assertCount(2, $completed);
+        foreach ($completed as $task) {
+            $this->assertSame(Status::Completed, $task->status);
         }
     }
 
-    public function testFiltrarTodas(): void
+    public function testFilterAll(): void
     {
-        $this->service->crearTarea('T1', '', 'alta');
-        $this->service->crearTarea('T2', '', 'media');
-        $this->service->completarTarea(1);
+        $this->service->createTask('T1', '', 'high');
+        $this->service->createTask('T2', '', 'medium');
+        $this->service->completeTask(1);
 
-        $todas = $this->service->listarTareas('todas');
+        $all = $this->service->listTasks('all');
 
-        $this->assertCount(2, $todas);
+        $this->assertCount(2, $all);
     }
 
-    public function testFiltrarAceptaVariantesDeEstado(): void
+    public function testFilterAcceptsStatusVariants(): void
     {
-        $this->service->crearTarea('T1', '', 'alta');
+        $this->service->createTask('Task 1', '', 'high');
+        $this->service->createTask('Task 2', '', 'medium');
 
-        // Las variantes 'pendientes', 'pending' tambien deben funcionar
-        $resultadoPendientes = $this->service->listarTareas('pendientes');
-        $this->assertCount(1, $resultadoPendientes);
+        // English filters should work
+        $all = $this->service->listTasks('all');
+        $this->assertCount(2, $all);
 
-        $resultadoPending = $this->service->listarTareas('pending');
-        $this->assertCount(1, $resultadoPending);
+        $pending = $this->service->listTasks('pending');
+        $this->assertCount(2, $pending);
 
-        // Completar y probar variantes de completada
-        $this->service->completarTarea(1);
+        // Spanish aliases should now throw exceptions
+        $this->expectException(\MiniProject\ValidationException::class);
+        $this->expectExceptionMessage('Invalid status filter');
 
-        $resultadoCompletadas = $this->service->listarTareas('completadas');
-        $this->assertCount(1, $resultadoCompletadas);
-
-        $resultadoCompleted = $this->service->listarTareas('completed');
-        $this->assertCount(1, $resultadoCompleted);
+        $this->service->listTasks('pendientes');
     }
 
     // ---------------------------------------------------------------
     //  Tests de flujo con multiples operaciones
     // ---------------------------------------------------------------
 
-    public function testCrearMultiplesTareasYEliminarAlgunas(): void
+    public function testCreateMultipleTasksAndDeleteSome(): void
     {
-        $t1 = $this->service->crearTarea('Tarea 1', '', 'alta');
-        $t2 = $this->service->crearTarea('Tarea 2', '', 'media');
-        $t3 = $this->service->crearTarea('Tarea 3', '', 'baja');
+        $t1 = $this->service->createTask('Tarea 1', '', 'high');
+        $t2 = $this->service->createTask('Tarea 2', '', 'medium');
+        $t3 = $this->service->createTask('Tarea 3', '', 'low');
 
         // Eliminar la tarea del medio
-        $this->service->eliminarTarea($t2->id);
+        $this->service->deleteTask($t2->id);
 
-        $todas = $this->service->listarTareas('todas');
-        $this->assertCount(2, $todas);
+        $all = $this->service->listTasks('all');
+        $this->assertCount(2, $all);
 
         // Verificar que las tareas correctas sobrevivieron
-        $ids = array_map(fn (Task $t) => $t->id, $todas);
+        $ids = array_map(fn (Task $t) => $t->id, $all);
         $this->assertContains($t1->id, $ids);
         $this->assertContains($t3->id, $ids);
         $this->assertNotContains($t2->id, $ids);
     }
 
-    public function testCompletarYVerificarCambioEnEstadisticas(): void
+    public function testCompleteAndVerifyStatisticsChange(): void
     {
-        $this->service->crearTarea('T1', '', 'alta');
-        $this->service->crearTarea('T2', '', 'media');
+        $this->service->createTask('T1', '', 'high');
+        $this->service->createTask('T2', '', 'medium');
 
         // Antes de completar
-        $statsBefore = $this->service->obtenerEstadisticas();
-        $this->assertSame(0, $statsBefore['completadas']);
-        $this->assertSame(2, $statsBefore['pendientes']);
+        $statsBefore = $this->service->getStatistics();
+        $this->assertSame(0, $statsBefore['completed']);
+        $this->assertSame(2, $statsBefore['pending']);
 
         // Completar una tarea
-        $this->service->completarTarea(1);
+        $this->service->completeTask(1);
 
         // Despues de completar
-        $statsAfter = $this->service->obtenerEstadisticas();
-        $this->assertSame(1, $statsAfter['completadas']);
-        $this->assertSame(1, $statsAfter['pendientes']);
+        $statsAfter = $this->service->getStatistics();
+        $this->assertSame(1, $statsAfter['completed']);
+        $this->assertSame(1, $statsAfter['pending']);
     }
 
-    public function testEliminarTareaInexistenteLanzaExcepcion(): void
+    public function testDeleteNonExistentTaskThrowsException(): void
     {
         $this->expectException(NotFoundException::class);
 
-        $this->service->eliminarTarea(999);
+        $this->service->deleteTask(999);
     }
 
-    public function testCompletarTareaInexistenteLanzaExcepcion(): void
+    public function testCompleteNonExistentTaskThrowsException(): void
     {
         $this->expectException(NotFoundException::class);
 
-        $this->service->completarTarea(999);
+        $this->service->completeTask(999);
     }
 
-    public function testNotFoundExceptionContieneDatosDelRecurso(): void
+    public function testNotFoundExceptionContainsResourceData(): void
     {
         try {
             $this->repository->findById(42);
             $this->fail('Deberia haber lanzado NotFoundException');
         } catch (NotFoundException $e) {
-            $this->assertSame('tarea', $e->recurso);
-            $this->assertSame(42, $e->identificador);
+            $this->assertSame('task', $e->resource);
+            $this->assertSame(42, $e->identifier);
             $this->assertStringContainsString('42', $e->getMessage());
         }
     }
 
-    public function testFlujoCompletoConVariasTareas(): void
+    public function testCompleteWorkflowWithMultipleTasks(): void
     {
         // Crear varias tareas
-        $comprar = $this->service->crearTarea('Comprar viveres', 'Lista del super', 'alta');
-        $estudiar = $this->service->crearTarea('Estudiar para examen', 'Capitulos 5 al 8', 'alta');
-        $limpiar = $this->service->crearTarea('Limpiar casa', 'Aspirar y trapear', 'media');
-        $ejercicio = $this->service->crearTarea('Hacer ejercicio', '30 min cardio', 'baja');
+        $shopping = $this->service->createTask('Comprar viveres', 'Lista del super', 'high');
+        $studying = $this->service->createTask('Estudiar para examen', 'Capitulos 5 al 8', 'high');
+        $cleaning = $this->service->createTask('Limpiar casa', 'Aspirar y trapear', 'medium');
+        $exercise = $this->service->createTask('Hacer ejercicio', '30 min cardio', 'low');
 
         // Verificar que hay 4 tareas pendientes
-        $this->assertCount(4, $this->service->listarTareas('pendiente'));
-        $this->assertCount(0, $this->service->listarTareas('completada'));
+        $this->assertCount(4, $this->service->listTasks('pending'));
+        $this->assertCount(0, $this->service->listTasks('completed'));
 
         // Completar dos tareas
-        $this->service->completarTarea($comprar->id);
-        $this->service->completarTarea($limpiar->id);
+        $this->service->completeTask($shopping->id);
+        $this->service->completeTask($cleaning->id);
 
         // Verificar filtrado
-        $this->assertCount(2, $this->service->listarTareas('pendiente'));
-        $this->assertCount(2, $this->service->listarTareas('completada'));
-        $this->assertCount(4, $this->service->listarTareas('todas'));
+        $this->assertCount(2, $this->service->listTasks('pending'));
+        $this->assertCount(2, $this->service->listTasks('completed'));
+        $this->assertCount(4, $this->service->listTasks('all'));
 
         // Buscar tareas
-        $resultados = $this->service->buscarTareas('examen');
-        $this->assertCount(1, $resultados);
-        $this->assertSame('Estudiar para examen', $resultados[0]->titulo);
+        $results = $this->service->searchTasks('examen');
+        $this->assertCount(1, $results);
+        $this->assertSame('Estudiar para examen', $results[0]->title);
 
         // Estadisticas finales
-        $stats = $this->service->obtenerEstadisticas();
+        $stats = $this->service->getStatistics();
         $this->assertSame(4, $stats['total']);
-        $this->assertSame(2, $stats['completadas']);
-        $this->assertSame(2, $stats['pendientes']);
-        $this->assertSame(2, $stats['por_prioridad']['alta']);
-        $this->assertSame(1, $stats['por_prioridad']['media']);
-        $this->assertSame(1, $stats['por_prioridad']['baja']);
+        $this->assertSame(2, $stats['completed']);
+        $this->assertSame(2, $stats['pending']);
+        $this->assertSame(2, $stats['by_priority']['high']);
+        $this->assertSame(1, $stats['by_priority']['medium']);
+        $this->assertSame(1, $stats['by_priority']['low']);
 
         // Eliminar una tarea completada
-        $this->service->eliminarTarea($comprar->id);
+        $this->service->deleteTask($shopping->id);
 
         // Verificar despues de eliminar
-        $this->assertCount(3, $this->service->listarTareas('todas'));
-        $statsPostDelete = $this->service->obtenerEstadisticas();
+        $this->assertCount(3, $this->service->listTasks('all'));
+        $statsPostDelete = $this->service->getStatistics();
         $this->assertSame(3, $statsPostDelete['total']);
-        $this->assertSame(1, $statsPostDelete['completadas']);
-        $this->assertSame(1, $statsPostDelete['por_prioridad']['alta']);
+        $this->assertSame(1, $statsPostDelete['completed']);
+        $this->assertSame(1, $statsPostDelete['by_priority']['high']);
     }
 
     // ---------------------------------------------------------------
-    //  Tests de edicion (actualizarTarea)
+    //  Tests de edicion (updateTask)
     // ---------------------------------------------------------------
 
-    public function testFlujoCompletoConEdicion(): void
+    public function testCompleteWorkflowWithEditing(): void
     {
         // 1. Crear tarea
-        $tarea = $this->service->crearTarea(
-            titulo: 'Titulo inicial',
-            descripcion: 'Descripcion inicial',
-            prioridad: 'baja',
+        $task = $this->service->createTask(
+            title: 'Titulo inicial',
+            description: 'Descripcion inicial',
+            priority: 'low',
         );
 
-        $this->assertSame('Titulo inicial', $tarea->titulo);
-        $this->assertSame('Descripcion inicial', $tarea->descripcion);
-        $this->assertSame(Priority::Baja, $tarea->prioridad);
+        $this->assertSame('Titulo inicial', $task->title);
+        $this->assertSame('Descripcion inicial', $task->description);
+        $this->assertSame(Priority::Low, $task->priority);
 
         // 2. Editar titulo
-        $editada = $this->service->actualizarTarea(
-            id: $tarea->id,
-            titulo: 'Titulo editado',
+        $edited = $this->service->updateTask(
+            id: $task->id,
+            title: 'Titulo editado',
         );
 
-        $this->assertSame('Titulo editado', $editada->titulo);
-        $this->assertSame('Descripcion inicial', $editada->descripcion);
-        $this->assertSame(Priority::Baja, $editada->prioridad);
+        $this->assertSame('Titulo editado', $edited->title);
+        $this->assertSame('Descripcion inicial', $edited->description);
+        $this->assertSame(Priority::Low, $edited->priority);
 
         // 3. Editar multiples campos
-        $editada2 = $this->service->actualizarTarea(
-            id: $tarea->id,
-            descripcion: 'Descripcion editada',
-            prioridad: 'alta',
+        $edited2 = $this->service->updateTask(
+            id: $task->id,
+            description: 'Descripcion editada',
+            priority: 'high',
         );
 
-        $this->assertSame('Titulo editado', $editada2->titulo);
-        $this->assertSame('Descripcion editada', $editada2->descripcion);
-        $this->assertSame(Priority::Alta, $editada2->prioridad);
+        $this->assertSame('Titulo editado', $edited2->title);
+        $this->assertSame('Descripcion editada', $edited2->description);
+        $this->assertSame(Priority::High, $edited2->priority);
 
         // 4. Verificar que la tarea persiste con los cambios
-        $verificada = $this->service->obtenerTarea($tarea->id);
-        $this->assertSame('Titulo editado', $verificada->titulo);
-        $this->assertSame('Descripcion editada', $verificada->descripcion);
-        $this->assertSame(Priority::Alta, $verificada->prioridad);
+        $verified = $this->service->getTask($task->id);
+        $this->assertSame('Titulo editado', $verified->title);
+        $this->assertSame('Descripcion editada', $verified->description);
+        $this->assertSame(Priority::High, $verified->priority);
 
         // 5. Completar la tarea editada
-        $completada = $this->service->completarTarea($tarea->id);
-        $this->assertSame(Status::Completada, $completada->estado);
+        $completed = $this->service->completeTask($task->id);
+        $this->assertSame(Status::Completed, $completed->status);
     }
 
-    public function testEdicionConFechaVencimiento(): void
+    public function testEditingWithDueDate(): void
     {
         // Crear tarea con fecha de vencimiento
-        $tarea = $this->service->crearTarea(
-            titulo: 'Tarea con deadline',
-            descripcion: '',
-            prioridad: 'alta',
-            fechaVencimiento: '2026-06-15',
+        $task = $this->service->createTask(
+            title: 'Tarea con deadline',
+            description: '',
+            priority: 'high',
+            dueDate: '2026-06-15',
         );
 
-        $this->assertSame('2026-06-15', $tarea->fechaVencimiento);
+        $this->assertSame('2026-06-15', $task->dueDate);
 
         // Cambiar la fecha de vencimiento
-        $editada = $this->service->actualizarTarea(
-            id: $tarea->id,
-            fechaVencimiento: '2026-07-01',
+        $edited = $this->service->updateTask(
+            id: $task->id,
+            dueDate: '2026-07-01',
         );
 
-        $this->assertSame('2026-07-01', $editada->fechaVencimiento);
+        $this->assertSame('2026-07-01', $edited->dueDate);
 
         // Eliminar la fecha de vencimiento
-        $sinFecha = $this->service->actualizarTarea(
-            id: $tarea->id,
-            fechaVencimiento: '',
+        $withoutDate = $this->service->updateTask(
+            id: $task->id,
+            dueDate: '',
         );
 
-        $this->assertNull($sinFecha->fechaVencimiento);
+        $this->assertNull($withoutDate->dueDate);
     }
 
-    public function testObtenerTareaUsandoServicio(): void
+    public function testGetTaskUsingService(): void
     {
-        $creada = $this->service->crearTarea(
-            titulo: 'Tarea obtenible',
-            descripcion: 'Para probar obtenerTarea',
-            prioridad: 'media',
+        $creada = $this->service->createTask(
+            title: 'Tarea obtenible',
+            description: 'Para probar getTask',
+            priority: 'medium',
         );
 
-        $obtenida = $this->service->obtenerTarea($creada->id);
+        $obtenida = $this->service->getTask($creada->id);
 
         $this->assertSame($creada->id, $obtenida->id);
-        $this->assertSame('Tarea obtenible', $obtenida->titulo);
-        $this->assertSame('Para probar obtenerTarea', $obtenida->descripcion);
+        $this->assertSame('Tarea obtenible', $obtenida->title);
+        $this->assertSame('Para probar getTask', $obtenida->description);
     }
 
     // ---------------------------------------------------------------
     //  Tests de paginacion en flujo de integracion
     // ---------------------------------------------------------------
 
-    public function testListadoPaginado(): void
+    public function testPaginatedListing(): void
     {
         // Crear 5 tareas
         for ($i = 1; $i <= 5; $i++) {
-            $this->service->crearTarea("Tarea {$i}", '', 'media');
+            $this->service->createTask("Tarea {$i}", '', 'medium');
         }
 
         // Pagina 1 con 2 por pagina
-        $pagina1 = $this->service->listarTareas(
-            filtro: 'todas',
+        $page1 = $this->service->listTasks(
+            filter: 'all',
             page: 1,
             perPage: 2,
         );
 
-        $this->assertSame(5, $pagina1['total']);
-        $this->assertSame(1, $pagina1['page']);
-        $this->assertSame(2, $pagina1['per_page']);
-        $this->assertSame(3, $pagina1['total_pages']);
-        $this->assertCount(2, $pagina1['tareas']);
+        $this->assertSame(5, $page1['total']);
+        $this->assertSame(1, $page1['page']);
+        $this->assertSame(2, $page1['per_page']);
+        $this->assertSame(3, $page1['total_pages']);
+        $this->assertCount(2, $page1['tasks']);
 
         // Pagina 3 con 2 por pagina (solo 1 resultado)
-        $pagina3 = $this->service->listarTareas(
-            filtro: 'todas',
+        $page3 = $this->service->listTasks(
+            filter: 'all',
             page: 3,
             perPage: 2,
         );
 
-        $this->assertCount(1, $pagina3['tareas']);
+        $this->assertCount(1, $page3['tasks']);
     }
 }

@@ -6,64 +6,62 @@ namespace MiniProject;
 
 /**
  * Enrutador simple para la API REST.
+ * Simple router for the REST API.
  *
- * Registra rutas con metodo HTTP y patron URI, resuelve la ruta
- * correspondiente a una peticion entrante, y extrae parametros
- * dinamicos de la URI (ej: /tasks/{id}).
+ * Registra rutas con método HTTP y patrón URI, resuelve la ruta
+ * correspondiente a una petición entrante, y extrae parámetros
+ * dinámicos de la URI (ej: /tasks/{id}).
  *
- * Caracteristicas PHP 8: constructor promotion, readonly, named arguments,
- * match, enums
+ * Registers routes with HTTP method and URI pattern, resolves the
+ * matching route for an incoming request, and extracts dynamic
+ * parameters from the URI (e.g., /tasks/{id}).
+ *
+ * PHP 8 features: constructor promotion, readonly, named arguments, match
  */
 
 /**
  * Representa una ruta registrada en el enrutador.
+ * Represents a registered route in the router.
  *
- * Almacena el metodo HTTP, patron de la URI, el handler (callback)
- * y la expresion regular compilada para el matching.
- *
- * Caracteristicas PHP 8: readonly, constructor promotion
+ * PHP 8 features: readonly, constructor promotion
  */
 class Route
 {
-    /** @var string Expresion regular compilada a partir del patron */
+    /** @var string Expresión regular compilada / Compiled regular expression */
     public readonly string $regex;
 
-    /** @var string[] Nombres de los parametros dinamicos extraidos del patron */
+    /** @var string[] Nombres de los parámetros dinámicos / Dynamic parameter names */
     public readonly array $paramNames;
 
     /**
-     * @param string $method Metodo HTTP (GET, POST, PATCH, DELETE)
-     * @param string $pattern Patron de URI con placeholders (ej: /tasks/{id})
-     * @param \Closure $handler Funcion que maneja la peticion
+     * @param string $method Método HTTP (GET, POST, PATCH, DELETE) / HTTP method
+     * @param string $pattern Patrón de URI con placeholders / URI pattern with placeholders
+     * @param \Closure $handler Función manejadora / Handler function
      */
     public function __construct(
         public readonly string $method,
         public readonly string $pattern,
         public readonly \Closure $handler,
     ) {
-        // Extraer nombres de parametros dinamicos del patron
         preg_match_all('/{(\w+)}/', $this->pattern, $matches);
         $this->paramNames = $matches[1];
 
-        // Compilar el patron a una expresion regular
-        // Reemplazar {param} por grupos de captura con nombre
         $regex = preg_replace('/{(\w+)}/', '(?P<$1>[^/]+)', $this->pattern);
         $this->regex = '#^' . $regex . '$#';
     }
 }
 
 /**
- * Resultado de la resolucion de una ruta.
+ * Resultado de la resolución de una ruta.
+ * Result of route resolution.
  *
- * Contiene el handler a ejecutar y los parametros extraidos de la URI.
- *
- * Caracteristicas PHP 8: readonly, constructor promotion
+ * PHP 8 features: readonly, constructor promotion
  */
 class RouteMatch
 {
     /**
-     * @param \Closure $handler Funcion que maneja la peticion
-     * @param array<string, string> $params Parametros extraidos de la URI
+     * @param \Closure $handler Función manejadora / Handler function
+     * @param array<string, string> $params Parámetros extraídos de la URI / Extracted URI parameters
      */
     public function __construct(
         public readonly \Closure $handler,
@@ -74,22 +72,27 @@ class RouteMatch
 
 /**
  * Enrutador principal de la API REST.
+ * Main REST API router.
  *
- * Gestiona el registro y resolucion de rutas HTTP. Soporta
- * parametros dinamicos en la URI y devuelve respuestas JSON
- * apropiadas para rutas no encontradas o metodos no permitidos.
+ * Gestiona el registro y resolución de rutas HTTP. Soporta
+ * parámetros dinámicos en la URI y devuelve respuestas JSON
+ * apropiadas para rutas no encontradas o métodos no permitidos.
+ *
+ * Manages HTTP route registration and resolution. Supports
+ * dynamic URI parameters and returns appropriate JSON responses
+ * for not found routes or disallowed methods.
  */
 class Router
 {
-    /** @var Route[] Rutas registradas */
+    /** @var Route[] Rutas registradas / Registered routes */
     private array $routes = [];
 
     /**
-     * Registra una ruta GET.
+     * Registra una ruta GET. / Registers a GET route.
      *
-     * @param string $pattern Patron de URI
-     * @param \Closure $handler Funcion manejadora
-     * @return self Para encadenamiento fluido
+     * @param string $pattern Patrón de URI / URI pattern
+     * @param \Closure $handler Función manejadora / Handler function
+     * @return self Para encadenamiento fluido / For fluent chaining
      */
     public function get(string $pattern, \Closure $handler): self
     {
@@ -97,11 +100,11 @@ class Router
     }
 
     /**
-     * Registra una ruta POST.
+     * Registra una ruta POST. / Registers a POST route.
      *
-     * @param string $pattern Patron de URI
-     * @param \Closure $handler Funcion manejadora
-     * @return self Para encadenamiento fluido
+     * @param string $pattern Patrón de URI / URI pattern
+     * @param \Closure $handler Función manejadora / Handler function
+     * @return self Para encadenamiento fluido / For fluent chaining
      */
     public function post(string $pattern, \Closure $handler): self
     {
@@ -109,11 +112,11 @@ class Router
     }
 
     /**
-     * Registra una ruta PATCH.
+     * Registra una ruta PATCH. / Registers a PATCH route.
      *
-     * @param string $pattern Patron de URI
-     * @param \Closure $handler Funcion manejadora
-     * @return self Para encadenamiento fluido
+     * @param string $pattern Patrón de URI / URI pattern
+     * @param \Closure $handler Función manejadora / Handler function
+     * @return self Para encadenamiento fluido / For fluent chaining
      */
     public function patch(string $pattern, \Closure $handler): self
     {
@@ -121,11 +124,11 @@ class Router
     }
 
     /**
-     * Registra una ruta PUT.
+     * Registra una ruta PUT. / Registers a PUT route.
      *
-     * @param string $pattern Patron de URI
-     * @param \Closure $handler Funcion manejadora
-     * @return self Para encadenamiento fluido
+     * @param string $pattern Patrón de URI / URI pattern
+     * @param \Closure $handler Función manejadora / Handler function
+     * @return self Para encadenamiento fluido / For fluent chaining
      */
     public function put(string $pattern, \Closure $handler): self
     {
@@ -133,11 +136,11 @@ class Router
     }
 
     /**
-     * Registra una ruta DELETE.
+     * Registra una ruta DELETE. / Registers a DELETE route.
      *
-     * @param string $pattern Patron de URI
-     * @param \Closure $handler Funcion manejadora
-     * @return self Para encadenamiento fluido
+     * @param string $pattern Patrón de URI / URI pattern
+     * @param \Closure $handler Función manejadora / Handler function
+     * @return self Para encadenamiento fluido / For fluent chaining
      */
     public function delete(string $pattern, \Closure $handler): self
     {
@@ -145,12 +148,13 @@ class Router
     }
 
     /**
-     * Registra una ruta con metodo y patron especificos.
+     * Registra una ruta con método y patrón específicos.
+     * Registers a route with specific method and pattern.
      *
-     * @param string $method Metodo HTTP
-     * @param string $pattern Patron de URI
-     * @param \Closure $handler Funcion manejadora
-     * @return self Para encadenamiento fluido
+     * @param string $method Método HTTP / HTTP method
+     * @param string $pattern Patrón de URI / URI pattern
+     * @param \Closure $handler Función manejadora / Handler function
+     * @return self Para encadenamiento fluido / For fluent chaining
      */
     private function addRoute(string $method, string $pattern, \Closure $handler): self
     {
@@ -164,33 +168,24 @@ class Router
     }
 
     /**
-     * Resuelve la ruta que coincide con el metodo y URI proporcionados.
+     * Resuelve la ruta que coincide con el método y URI proporcionados.
+     * Resolves the route matching the given method and URI.
      *
-     * Busca entre las rutas registradas una que coincida con el metodo HTTP
-     * y el patron de URI. Si encuentra una coincidencia de patron pero con
-     * metodo incorrecto, devuelve error 405. Si no hay coincidencia,
-     * devuelve error 404.
-     *
-     * @param string $method Metodo HTTP de la peticion
-     * @param string $uri URI de la peticion (sin query string)
-     * @return RouteMatch Resultado con handler y parametros extraidos
+     * @param string $method Método HTTP de la petición / Request HTTP method
+     * @param string $uri URI de la petición (sin query string) / Request URI (no query string)
+     * @return RouteMatch Resultado con handler y parámetros / Result with handler and parameters
      */
     public function resolve(string $method, string $uri): RouteMatch
     {
         $method = strtoupper($method);
-
-        // Normalizar la URI: eliminar barra final (excepto la raiz)
         $uri = rtrim($uri, '/') ?: '/';
 
-        // Rastrear si alguna ruta coincide con el patron pero no con el metodo
-        $patronCoincide = false;
-        $metodosPermitidos = [];
+        $patternMatches = false;
+        $allowedMethods = [];
 
         foreach ($this->routes as $route) {
             if (preg_match($route->regex, $uri, $matches)) {
-                // El patron coincide, verificar el metodo
                 if ($route->method === $method) {
-                    // Extraer solo los parametros con nombre (no los numericos)
                     $params = array_filter(
                         $matches,
                         fn (string $key): bool => !is_numeric($key),
@@ -203,25 +198,22 @@ class Router
                     );
                 }
 
-                // Patron coincide pero metodo incorrecto
-                $patronCoincide = true;
-                $metodosPermitidos[] = $route->method;
+                $patternMatches = true;
+                $allowedMethods[] = $route->method;
             }
         }
 
-        // Si algun patron coincidio pero el metodo no era correcto: 405
-        if ($patronCoincide) {
-            $permitidos = implode(', ', array_unique($metodosPermitidos));
-            header("Allow: {$permitidos}");
+        if ($patternMatches) {
+            $allowed = implode(', ', array_unique($allowedMethods));
+            header("Allow: {$allowed}");
             JsonResponse::error(
-                message: "Metodo {$method} no permitido. Metodos aceptados: {$permitidos}",
+                message: "Method {$method} not allowed. Accepted methods: {$allowed}",
                 code: 405,
             );
         }
 
-        // Ninguna ruta coincidio: 404
         JsonResponse::error(
-            message: "Ruta no encontrada: {$method} {$uri}",
+            message: "Route not found: {$method} {$uri}",
             code: 404,
         );
     }
