@@ -215,4 +215,144 @@ class TaskRepositoryTest extends TestCase
         $this->assertArrayHasKey('medium', $stats['by_priority']);
         $this->assertArrayHasKey('low', $stats['by_priority']);
     }
+
+    // ---------------------------------------------------------------
+    //  Tests: recurrence / Recurrencia
+    // ---------------------------------------------------------------
+
+    public function testSaveAndHydrateRecurrence(): void
+    {
+        $saved = $this->repository->save(
+            new Task(
+                id: null,
+                title: 'Daily standup',
+                description: '',
+                priority: Priority::Medium,
+                status: Status::Pending,
+                recurrence: \MiniProject\RecurrenceInterval::Daily,
+            )
+        );
+
+        $this->assertSame(\MiniProject\RecurrenceInterval::Daily, $saved->recurrence);
+    }
+
+    public function testUpdateRecurrence(): void
+    {
+        $saved = $this->repository->save(
+            new Task(
+                id: null,
+                title: 'Task',
+                description: '',
+                priority: Priority::Medium,
+                status: Status::Pending,
+            )
+        );
+
+        $this->assertSame(\MiniProject\RecurrenceInterval::None, $saved->recurrence);
+
+        $updated = $this->repository->update($saved->id, ['recurrence' => 'weekly']);
+        $this->assertSame(\MiniProject\RecurrenceInterval::Weekly, $updated->recurrence);
+    }
+
+    // ---------------------------------------------------------------
+    //  Tests: bulkComplete / Completar en bulk
+    // ---------------------------------------------------------------
+
+    public function testBulkCompleteEmptyArrayReturnsZero(): void
+    {
+        $result = $this->repository->bulkComplete([]);
+        $this->assertSame(0, $result['affected']);
+        $this->assertSame([], $result['skipped']);
+    }
+
+    public function testBulkCompleteAllPendingTasks(): void
+    {
+        $t1 = $this->repository->save(new Task(null, 'T1', '', Priority::Low, Status::Pending));
+        $t2 = $this->repository->save(new Task(null, 'T2', '', Priority::Low, Status::Pending));
+
+        $result = $this->repository->bulkComplete([$t1->id, $t2->id]);
+
+        $this->assertSame(2, $result['affected']);
+        $this->assertSame([], $result['skipped']);
+        $this->assertSame(Status::Completed, $this->repository->findById($t1->id)->status);
+        $this->assertSame(Status::Completed, $this->repository->findById($t2->id)->status);
+    }
+
+    public function testBulkCompleteSkipsAlreadyCompleted(): void
+    {
+        $t1 = $this->repository->save(new Task(null, 'T1', '', Priority::Low, Status::Pending));
+        $t2 = $this->repository->save(new Task(null, 'T2', '', Priority::Low, Status::Pending));
+        $this->repository->complete($t2->id);
+
+        $result = $this->repository->bulkComplete([$t1->id, $t2->id]);
+
+        $this->assertSame(1, $result['affected']);
+        $this->assertContains($t2->id, $result['skipped']);
+    }
+
+    public function testBulkCompleteSkipsNonexistentIds(): void
+    {
+        $result = $this->repository->bulkComplete([9999, 8888]);
+        $this->assertSame(0, $result['affected']);
+        $this->assertCount(2, $result['skipped']);
+    }
+
+    public function testBulkCompleteUserIsolation(): void
+    {
+        // Create task for user 2
+        $pdo = Database::getInstance()->getConnection();
+        $pdo->exec("INSERT INTO users (username, password_hash) VALUES ('user2', 'hash2')");
+        $repo2 = new TaskRepository(userId: 2);
+        $t2 = $repo2->save(new Task(null, 'User2 task', '', Priority::Low, Status::Pending));
+
+        // User 1 tries to bulk-complete user 2's task
+        $result = $this->repository->bulkComplete([$t2->id]);
+
+        $this->assertSame(0, $result['affected']);
+        // Task still pending for user 2
+        $this->assertSame(Status::Pending, $repo2->findById($t2->id)->status);
+    }
+
+    // ---------------------------------------------------------------
+    //  Tests: bulkDelete / Eliminar en bulk
+    // ---------------------------------------------------------------
+
+    public function testBulkDeleteEmptyArrayReturnsZero(): void
+    {
+        $result = $this->repository->bulkDelete([]);
+        $this->assertSame(0, $result['affected']);
+    }
+
+    public function testBulkDeleteRemovesTasks(): void
+    {
+        $t1 = $this->repository->save(new Task(null, 'T1', '', Priority::Low, Status::Pending));
+        $t2 = $this->repository->save(new Task(null, 'T2', '', Priority::Low, Status::Pending));
+
+        $result = $this->repository->bulkDelete([$t1->id, $t2->id]);
+
+        $this->assertSame(2, $result['affected']);
+        $this->expectException(NotFoundException::class);
+        $this->repository->findById($t1->id);
+    }
+
+    public function testBulkDeleteIgnoresNonexistentIds(): void
+    {
+        $t1 = $this->repository->save(new Task(null, 'T1', '', Priority::Low, Status::Pending));
+        $result = $this->repository->bulkDelete([$t1->id, 9999]);
+        $this->assertSame(1, $result['affected']);
+    }
+
+    public function testBulkDeleteUserIsolation(): void
+    {
+        $pdo = Database::getInstance()->getConnection();
+        $pdo->exec("INSERT INTO users (username, password_hash) VALUES ('user2', 'hash2')");
+        $repo2 = new TaskRepository(userId: 2);
+        $t2 = $repo2->save(new Task(null, 'User2 task', '', Priority::Low, Status::Pending));
+
+        // User 1 tries to delete user 2's task
+        $result = $this->repository->bulkDelete([$t2->id]);
+        $this->assertSame(0, $result['affected']);
+        // Task still exists for user 2
+        $this->assertNotNull($repo2->findById($t2->id));
+    }
 }

@@ -205,6 +205,21 @@ $router->delete('/tasks/{id}', function (array $params) use ($controller, $authS
     $controller->deleteTask($params);
 });
 
+// --- Bulk task operations / Operaciones bulk de tareas ---
+// Must be before /{id} routes to avoid route conflicts / Deben ir antes de rutas con {id}
+
+$router->post('/tasks/bulk-complete', function () use ($controller, $authService): void {
+    Middleware::requireAuth($authService, $controller);
+    $body = Middleware::jsonBody();
+    $controller->bulkComplete($body);
+});
+
+$router->post('/tasks/bulk-delete', function () use ($controller, $authService): void {
+    Middleware::requireAuth($authService, $controller);
+    $body = Middleware::jsonBody();
+    $controller->bulkDelete($body);
+});
+
 // --- Protected tag routes / Rutas protegidas de etiquetas ---
 
 $router->get('/tags', function () use ($controller, $authService): void {

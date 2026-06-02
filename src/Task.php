@@ -121,6 +121,7 @@ class Task
      * @param string $createdAt Fecha y hora de creación / Creation date and time
      * @param string|null $completedAt Fecha de completado (null si pendiente) / Completion date (null if pending)
      * @param string|null $dueDate Fecha límite (null si no tiene) / Due date (null if not set)
+     * @param RecurrenceInterval $recurrence Intervalo de recurrencia / Recurrence interval
      */
     public function __construct(
         public readonly ?int $id,
@@ -131,6 +132,7 @@ class Task
         public readonly string $createdAt = '',
         public readonly ?string $completedAt = null,
         public readonly ?string $dueDate = null,
+        public readonly RecurrenceInterval $recurrence = RecurrenceInterval::None,
     ) {
     }
 
@@ -158,6 +160,7 @@ class Task
             createdAt: $row['created_at'] ?? '',
             completedAt: $row['completed_at'],
             dueDate: $row['due_date'] ?? null,
+            recurrence: RecurrenceInterval::from($row['recurrence'] ?? 'none'),
         );
     }
 
@@ -178,6 +181,7 @@ class Task
             'created_at' => $this->createdAt,
             'completed_at' => $this->completedAt,
             'due_date' => $this->dueDate,
+            'recurrence' => $this->recurrence->value,
         ];
     }
 
@@ -242,6 +246,10 @@ class Task
                 $dueDateText = "\033[31m{$this->dueDate} (VENCIDA)\033[0m";
             }
             $lines[] = "  Vencimiento: {$dueDateText}";
+        }
+
+        if ($this->recurrence !== RecurrenceInterval::None) {
+            $lines[] = "  Recurrencia: \033[36m{$this->recurrence->label()}\033[0m";
         }
 
         $lines[] = "\033[1;36m" . str_repeat('-', 35) . "\033[0m";

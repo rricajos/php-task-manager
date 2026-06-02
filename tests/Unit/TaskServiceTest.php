@@ -820,4 +820,158 @@ class TaskServiceTest extends TestCase
 
         $this->service->completeTask(-1);
     }
+
+    // ---------------------------------------------------------------
+    //  Tests: recurrence / Recurrencia
+    // ---------------------------------------------------------------
+
+    public function testCreateTaskWithRecurrence(): void
+    {
+        $task = $this->service->createTask('Standup', '', 'medium', null, 'daily');
+        $this->assertSame(\MiniProject\RecurrenceInterval::Daily, $task->recurrence);
+    }
+
+    public function testCreateTaskWithNullRecurrenceDefaultsToNone(): void
+    {
+        $task = $this->service->createTask('Task', '', 'medium');
+        $this->assertSame(\MiniProject\RecurrenceInterval::None, $task->recurrence);
+    }
+
+    public function testCreateTaskWithInvalidRecurrenceThrows(): void
+    {
+        $this->expectException(\MiniProject\ValidationException::class);
+        $this->expectExceptionMessage('Invalid recurrence');
+
+        $this->service->createTask('Task', '', 'medium', null, 'hourly');
+    }
+
+    public function testUpdateTaskRecurrence(): void
+    {
+        $task = $this->service->createTask('Task', '', 'medium');
+        $updated = $this->service->updateTask($task->id, recurrence: 'weekly');
+        $this->assertSame(\MiniProject\RecurrenceInterval::Weekly, $updated->recurrence);
+    }
+
+    public function testCompleteRecurringTaskCreatesNextOccurrence(): void
+    {
+        $task = $this->service->createTask('Daily task', '', 'high', '2026-06-01', 'daily');
+        $this->service->completeTask($task->id);
+
+        // Should now have 2 tasks: the completed one + the next occurrence
+        $all = $this->service->listTasks('all');
+        $this->assertCount(2, $all);
+
+        $next = array_values(array_filter($all, fn ($t) => $t->status === \MiniProject\Status::Pending));
+        $this->assertCount(1, $next);
+        $this->assertSame('2026-06-02', $next[0]->dueDate);
+        $this->assertSame(\MiniProject\RecurrenceInterval::Daily, $next[0]->recurrence);
+    }
+
+    public function testCompleteNonRecurringTaskDoesNotCreateNextOccurrence(): void
+    {
+        $task = $this->service->createTask('One-time task', '', 'low');
+        $this->service->completeTask($task->id);
+
+        $all = $this->service->listTasks('all');
+        $this->assertCount(1, $all);
+    }
+
+    public function testCompleteRecurringTaskWithNoDueDateUsesRelativeDate(): void
+    {
+        $task = $this->service->createTask('Weekly task', '', 'medium', null, 'weekly');
+        $this->service->completeTask($task->id);
+
+        $pending = array_values(array_filter(
+            $this->service->listTasks('all'),
+            fn ($t) => $t->status === \MiniProject\Status::Pending,
+        ));
+        $this->assertCount(1, $pending);
+        $expected = (new \DateTimeImmutable())->modify('+7 days')->format('Y-m-d');
+        $this->assertSame($expected, $pending[0]->dueDate);
+    }
+
+    // ---------------------------------------------------------------
+    //  Tests: bulkComplete / Completar en bulk
+    // ---------------------------------------------------------------
+
+    public function testBulkCompleteEmptyIdsThrows(): void
+    {
+        $this->expectException(\MiniProject\ValidationException::class);
+        $this->expectExceptionMessage('cannot be empty');
+
+        $this->service->bulkComplete([]);
+    }
+
+    public function testBulkCompleteWithNonIntegerThrows(): void
+    {
+        $this->expectException(\MiniProject\ValidationException::class);
+
+        $this->service->bulkComplete(['abc']);
+    }
+
+    public function testBulkCompleteWithZeroIdThrows(): void
+    {
+        $this->expectException(\MiniProject\ValidationException::class);
+
+        $this->service->bulkComplete([0]);
+    }
+
+    public function testBulkCompletePendingTasks(): void
+    {
+        $t1 = $this->service->createTask('T1', '', 'low');
+        $t2 = $this->service->createTask('T2', '', 'low');
+
+        $result = $this->service->bulkComplete([$t1->id, $t2->id]);
+
+        $this->assertSame(2, $result['affected']);
+        $this->assertSame([], $result['skipped']);
+    }
+
+    public function testBulkCompletePartialResult(): void
+    {
+        $t1 = $this->service->createTask('T1', '', 'low');
+        $t2 = $this->service->createTask('T2', '', 'low');
+        $this->service->completeTask($t2->id);
+
+        $result = $this->service->bulkComplete([$t1->id, $t2->id]);
+
+        $this->assertSame(1, $result['affected']);
+        $this->assertContains($t2->id, $result['skipped']);
+    }
+
+    // ---------------------------------------------------------------
+    //  Tests: bulkDelete / Eliminar en bulk
+    // ---------------------------------------------------------------
+
+    public function testBulkDeleteEmptyIdsThrows(): void
+    {
+        $this->expectException(\MiniProject\ValidationException::class);
+
+        $this->service->bulkDelete([]);
+    }
+
+    public function testBulkDeleteTasks(): void
+    {
+        $t1 = $this->service->createTask('T1', '', 'low');
+        $t2 = $this->service->createTask('T2', '', 'low');
+
+        $result = $this->service->bulkDelete([$t1->id, $t2->id]);
+
+        $this->assertSame(2, $result['affected']);
+        $this->assertCount(0, $this->service->listTasks('all'));
+    }
+
+    public function testBulkDeleteIgnoresNonexistentIds(): void
+    {
+        $t1 = $this->service->createTask('T1', '', 'low');
+        $result = $this->service->bulkDelete([$t1->id, 9999]);
+        $this->assertSame(1, $result['affected']);
+    }
+
+    public function testBulkDeleteWithNegativeIdThrows(): void
+    {
+        $this->expectException(\MiniProject\ValidationException::class);
+
+        $this->service->bulkDelete([-1]);
+    }
 }

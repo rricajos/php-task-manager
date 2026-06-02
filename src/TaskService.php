@@ -45,6 +45,7 @@ class TaskService implements TaskServiceInterface
      * @param string $description Descripción opcional de la tarea / Optional task description
      * @param string $priority Prioridad como string: 'high', 'medium' o 'low' / Priority as string: 'high', 'medium' or 'low'
      * @param string|null $dueDate Fecha de vencimiento en formato Y-m-d (opcional) / Due date in Y-m-d format (optional)
+     * @param string|null $recurrence Intervalo de recurrencia: 'none', 'daily', 'weekly', 'monthly' / Recurrence interval
      * @return Task La tarea creada con su id asignado / The created task with its assigned id
      * @throws ValidationException Si los datos no son válidos / If the data is not valid
      */
@@ -53,6 +54,7 @@ class TaskService implements TaskServiceInterface
         string $description,
         string $priority,
         ?string $dueDate = null,
+        ?string $recurrence = null,
     ): Task {
         // Validate title (required, non-empty, max 100 chars)
         $title = $this->validateTitle($title);
@@ -66,6 +68,9 @@ class TaskService implements TaskServiceInterface
         // Validate due date if provided
         $validatedDueDate = $this->validateDueDate($dueDate);
 
+        // Validate and convert recurrence from string to enum
+        $recurrenceEnum = $this->validateRecurrence($recurrence);
+
         // Create the Task entity with named arguments
         $task = new Task(
             id: null,
@@ -74,6 +79,7 @@ class TaskService implements TaskServiceInterface
             priority: $priorityEnum,
             status: Status::Pending,
             dueDate: $validatedDueDate,
+            recurrence: $recurrenceEnum,
         );
 
         // Delegate to the repository to persist
@@ -108,6 +114,7 @@ class TaskService implements TaskServiceInterface
      * @param string|null $description Nueva descripción (null para no cambiar) / New description (null to keep unchanged)
      * @param string|null $priority Nueva prioridad (null para no cambiar) / New priority (null to keep unchanged)
      * @param string|null $dueDate Nueva fecha de vencimiento (null para no cambiar) / New due date (null to keep unchanged)
+     * @param string|null $recurrence Nuevo intervalo de recurrencia (null para no cambiar) / New recurrence interval (null to keep unchanged)
      * @return Task Tarea actualizada / Updated task
      * @throws ValidationException Si los datos no son válidos / If the data is not valid
      * @throws NotFoundException Si la tarea no existe / If the task does not exist
@@ -118,6 +125,7 @@ class TaskService implements TaskServiceInterface
         ?string $description = null,
         ?string $priority = null,
         ?string $dueDate = null,
+        ?string $recurrence = null,
     ): Task {
         $validatedId = $this->validateId($id);
 
@@ -147,6 +155,11 @@ class TaskService implements TaskServiceInterface
             } else {
                 $data['due_date'] = $this->validateDueDate($dueDate);
             }
+        }
+
+        // Validate and add recurrence if provided
+        if ($recurrence !== null) {
+            $data['recurrence'] = $this->validateRecurrence($recurrence)->value;
         }
 
         if (empty($data)) {
@@ -255,6 +268,12 @@ class TaskService implements TaskServiceInterface
      * Marca una tarea como completada por su ID.
      * Marks a task as completed by its ID.
      *
+     * Si la tarea tiene recurrencia, crea automáticamente la siguiente
+     * ocurrencia con la fecha calculada según el intervalo.
+     *
+     * If the task has recurrence, automatically creates the next
+     * occurrence with the date calculated from the interval.
+     *
      * @param int|string $id Identificador de la tarea (se valida como entero positivo) / Task identifier (validated as positive integer)
      * @return Task Tarea actualizada con estado completada / Updated task with completed status
      * @throws ValidationException Si el ID no es válido / If the ID is not valid
@@ -274,7 +293,54 @@ class TaskService implements TaskServiceInterface
             );
         }
 
-        return $this->repository->complete($validatedId);
+        $completed = $this->repository->complete($validatedId);
+
+        // If recurring, auto-create the next occurrence
+        if ($task->recurrence !== RecurrenceInterval::None) {
+            $nextDueDate = $task->recurrence->nextDueDate($task->dueDate);
+            $this->createTask(
+                title: $task->title,
+                description: $task->description,
+                priority: $task->priority->value,
+                dueDate: $nextDueDate,
+                recurrence: $task->recurrence->value,
+            );
+        }
+
+        return $completed;
+    }
+
+    /**
+     * Completa múltiples tareas en una sola operación.
+     * Completes multiple tasks in a single operation.
+     *
+     * Valida que los IDs sean enteros positivos y delega al repositorio.
+     * Validates that IDs are positive integers and delegates to the repository.
+     *
+     * @param array<mixed> $ids IDs de las tareas a completar / IDs of the tasks to complete
+     * @return array{affected: int, skipped: int[]} Resultado de la operación / Operation result
+     * @throws ValidationException Si los IDs no son válidos / If the IDs are not valid
+     */
+    public function bulkComplete(array $ids): array
+    {
+        $validatedIds = $this->validateBulkIds($ids);
+
+        return $this->repository->bulkComplete($validatedIds);
+    }
+
+    /**
+     * Elimina múltiples tareas en una sola operación.
+     * Deletes multiple tasks in a single operation.
+     *
+     * @param array<mixed> $ids IDs de las tareas a eliminar / IDs of the tasks to delete
+     * @return array{affected: int} Resultado de la operación / Operation result
+     * @throws ValidationException Si los IDs no son válidos / If the IDs are not valid
+     */
+    public function bulkDelete(array $ids): array
+    {
+        $validatedIds = $this->validateBulkIds($ids);
+
+        return $this->repository->bulkDelete($validatedIds);
     }
 
     /**
@@ -542,5 +608,79 @@ class TaskService implements TaskServiceInterface
         }
 
         return $dueDate;
+    }
+
+    /**
+     * Valida y convierte un string de recurrencia al enum RecurrenceInterval.
+     * Validates and converts a recurrence string to the RecurrenceInterval enum.
+     *
+     * @param string|null $recurrence Valor de recurrencia como texto / Recurrence value as text
+     * @return RecurrenceInterval Enum de recurrencia validado / Validated recurrence enum
+     * @throws ValidationException Si el valor no es un intervalo válido / If the value is not a valid interval
+     */
+    private function validateRecurrence(?string $recurrence): RecurrenceInterval
+    {
+        if ($recurrence === null || $recurrence === '') {
+            return RecurrenceInterval::None;
+        }
+
+        $recurrence = strtolower(trim($recurrence));
+        $enum = RecurrenceInterval::tryFrom($recurrence);
+
+        if ($enum === null) {
+            $validValues = implode(', ', array_map(
+                fn (RecurrenceInterval $r): string => $r->value,
+                RecurrenceInterval::cases(),
+            ));
+
+            throw new ValidationException(
+                message: "Invalid recurrence: '{$recurrence}'. Valid values: {$validValues}",
+                code: ValidationException::ERROR_INVALID_FORMAT,
+                field: 'recurrence',
+            );
+        }
+
+        return $enum;
+    }
+
+    /**
+     * Valida un array de IDs para operaciones en bulk.
+     * Validates an array of IDs for bulk operations.
+     *
+     * @param array<mixed> $ids Array de IDs a validar / Array of IDs to validate
+     * @return int[] Array de IDs validados como enteros positivos / Validated IDs as positive integers
+     * @throws ValidationException Si el array está vacío o contiene IDs inválidos / If the array is empty or contains invalid IDs
+     */
+    private function validateBulkIds(array $ids): array
+    {
+        if ($ids === []) {
+            throw new ValidationException(
+                message: 'ids array cannot be empty',
+                code: ValidationException::ERROR_EMPTY_FIELD,
+                field: 'ids',
+            );
+        }
+
+        $validated = [];
+        foreach ($ids as $id) {
+            if (!is_int($id) && !ctype_digit((string) $id)) {
+                throw new ValidationException(
+                    message: "Each ID must be a positive integer, received: '{$id}'",
+                    code: ValidationException::ERROR_INVALID_ID,
+                    field: 'ids',
+                );
+            }
+            $intId = (int) $id;
+            if ($intId <= 0) {
+                throw new ValidationException(
+                    message: "Each ID must be greater than zero, received: {$intId}",
+                    code: ValidationException::ERROR_INVALID_ID,
+                    field: 'ids',
+                );
+            }
+            $validated[] = $intId;
+        }
+
+        return $validated;
     }
 }

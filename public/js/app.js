@@ -174,6 +174,20 @@ const Api = {
             body: JSON.stringify({ tag_ids: tagIds }),
         });
     },
+
+    bulkComplete(ids) {
+        return this.request('/tasks/bulk-complete', {
+            method: 'POST',
+            body: JSON.stringify({ ids }),
+        });
+    },
+
+    bulkDelete(ids) {
+        return this.request('/tasks/bulk-delete', {
+            method: 'POST',
+            body: JSON.stringify({ ids }),
+        });
+    },
 };
 
 /* ---------------------------------------------------------------
@@ -306,6 +320,7 @@ const Tasks = {
         },
         search: '',
         editingTask: null,
+        selectedIds: new Set(),
     },
 
     render() {
@@ -341,6 +356,14 @@ const Tasks = {
                         <button class="btn btn-outline btn-sm" id="btn-tags" title="Manage Tags">Tags</button>
                         <button class="btn btn-outline btn-sm" id="btn-export" title="Export">Export</button>
                         <button class="btn btn-primary btn-sm" id="btn-new-task">+ New Task</button>
+                    </div>
+                </div>
+                <div id="bulk-bar" class="bulk-bar hidden">
+                    <span id="bulk-count">0 selected</span>
+                    <div class="bulk-actions">
+                        <button type="button" id="btn-bulk-complete" class="btn-bulk-action">Complete selected</button>
+                        <button type="button" id="btn-bulk-delete" class="btn-bulk-action btn-danger">Delete selected</button>
+                        <button type="button" id="btn-bulk-cancel" class="btn-bulk-action">Clear</button>
                     </div>
                 </div>
                 <div id="task-list" class="task-list">
@@ -435,6 +458,11 @@ const Tasks = {
             if (e.target === e.currentTarget) this.closeTagsModal();
         });
         document.getElementById('tags-modal-close').addEventListener('click', () => this.closeTagsModal());
+
+        // Bulk action bar
+        document.getElementById('btn-bulk-complete').addEventListener('click', () => this.bulkCompleteSelected());
+        document.getElementById('btn-bulk-delete').addEventListener('click', () => this.bulkDeleteSelected());
+        document.getElementById('btn-bulk-cancel').addEventListener('click', () => this.clearBulkSelection());
     },
 
     // Tags
@@ -624,6 +652,7 @@ const Tasks = {
             return;
         }
 
+        this.state.selectedIds.clear();
         listEl.innerHTML = this.state.tasks.map((task) => this.renderTaskCard(task)).join('');
 
         // Bind task actions
@@ -640,7 +669,7 @@ const Tasks = {
             });
         });
 
-        // Checkbox click
+        // Checkbox click (completion toggle)
         listEl.querySelectorAll('.task-checkbox').forEach((cb) => {
             cb.addEventListener('change', () => {
                 const id = parseInt(cb.dataset.id, 10);
@@ -652,6 +681,21 @@ const Tasks = {
                 }
             });
         });
+
+        // Bulk select checkboxes
+        listEl.querySelectorAll('.bulk-checkbox').forEach((cb) => {
+            cb.addEventListener('change', () => {
+                const id = parseInt(cb.dataset.id, 10);
+                if (cb.checked) {
+                    this.state.selectedIds.add(id);
+                } else {
+                    this.state.selectedIds.delete(id);
+                }
+                this.updateBulkBar();
+            });
+        });
+
+        this.updateBulkBar();
     },
 
     renderTaskCard(task) {
@@ -665,8 +709,15 @@ const Tasks = {
             ).join('')}</span>`
             : '';
 
+        const recurBadge = task.recurrence && task.recurrence !== 'none'
+            ? `<span class="badge badge-recurrence" title="Repeats ${task.recurrence}">&#8635; ${task.recurrence}</span>`
+            : '';
+
         return `
             <div class="task-card priority-${task.priority} status-${task.status}">
+                <div class="task-bulk">
+                    <input type="checkbox" class="bulk-checkbox" data-id="${task.id}">
+                </div>
                 <div class="task-check">
                     <input type="checkbox" class="task-checkbox"
                            data-id="${task.id}"
@@ -681,6 +732,7 @@ const Tasks = {
                         <span class="badge badge-${task.status}">${task.status}</span>
                         ${dueInfo ? `<span class="task-due ${dueInfo.overdue ? 'overdue' : ''}">${dueInfo.text}</span>` : ''}
                         ${tagsHtml}
+                        ${recurBadge}
                     </div>
                 </div>
                 <div class="task-actions">
@@ -757,6 +809,7 @@ const Tasks = {
             document.getElementById('task-description').value = task.description || '';
             document.getElementById('task-priority').value = task.priority;
             document.getElementById('task-due-date').value = task.due_date || '';
+            document.getElementById('task-recurrence').value = task.recurrence || 'none';
         }
 
         // Render tag checkboxes
@@ -778,6 +831,7 @@ const Tasks = {
             description: document.getElementById('task-description').value.trim(),
             priority: document.getElementById('task-priority').value,
             due_date: document.getElementById('task-due-date').value || '',
+            recurrence: document.getElementById('task-recurrence').value,
             tag_ids: this.getSelectedTagIds(),
         };
 
@@ -875,6 +929,59 @@ const Tasks = {
         if (!str) return '';
         const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
         return str.replace(/[&<>"']/g, (c) => map[c]);
+    },
+
+    // Bulk selection
+    updateBulkBar() {
+        const bar = document.getElementById('bulk-bar');
+        if (!bar) return;
+        const count = this.state.selectedIds.size;
+        if (count > 0) {
+            bar.classList.remove('hidden');
+            document.getElementById('bulk-count').textContent =
+                `${count} task${count !== 1 ? 's' : ''} selected`;
+        } else {
+            bar.classList.add('hidden');
+        }
+    },
+
+    clearBulkSelection() {
+        this.state.selectedIds.clear();
+        document.querySelectorAll('.bulk-checkbox').forEach((cb) => {
+            cb.checked = false;
+        });
+        this.updateBulkBar();
+    },
+
+    async bulkCompleteSelected() {
+        const ids = [...this.state.selectedIds];
+        if (ids.length === 0) return;
+        try {
+            const result = await Api.bulkComplete(ids);
+            const { affected, skipped } = result.data;
+            Toast.success(`${affected} task${affected !== 1 ? 's' : ''} completed`);
+            if (skipped && skipped.length > 0) {
+                Toast.show(`${skipped.length} already completed or not found`, 'info');
+            }
+            this.loadTasks();
+            this.loadStats();
+        } catch (err) {
+            Toast.error(err.message);
+        }
+    },
+
+    async bulkDeleteSelected() {
+        const ids = [...this.state.selectedIds];
+        if (ids.length === 0) return;
+        try {
+            const result = await Api.bulkDelete(ids);
+            const { affected } = result.data;
+            Toast.success(`${affected} task${affected !== 1 ? 's' : ''} deleted`);
+            this.loadTasks();
+            this.loadStats();
+        } catch (err) {
+            Toast.error(err.message);
+        }
     },
 };
 

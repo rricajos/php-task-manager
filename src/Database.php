@@ -139,11 +139,19 @@ class Database
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 completed_at DATETIME DEFAULT NULL,
                 due_date DATE DEFAULT NULL,
+                recurrence TEXT NOT NULL DEFAULT 'none' CHECK(recurrence IN ('none', 'daily', 'weekly', 'monthly')),
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             )
         SQL;
 
         $this->pdo->exec($sqlTasks);
+
+        // Migration: add recurrence column to existing databases that predate this feature
+        try {
+            $this->pdo->exec("ALTER TABLE tasks ADD COLUMN recurrence TEXT NOT NULL DEFAULT 'none'");
+        } catch (\PDOException) {
+            // Column already exists — safe to ignore
+        }
 
         $sqlTags = <<<'SQL'
             CREATE TABLE IF NOT EXISTS tags (

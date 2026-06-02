@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.4.0] — 2026-06-02
+
+### Added
+- **Recurring tasks** — `RecurrenceInterval` backed enum (`none`, `daily`, `weekly`, `monthly`); completing a recurring task auto-creates the next occurrence with the calculated `due_date`; `recurrence` field available in all task CRUD endpoints and responses
+- **Bulk operations** — `POST /tasks/bulk-complete` and `POST /tasks/bulk-delete`; transactional SQLite execution; partial-success reporting (`affected` + `skipped` fields); user-isolated (cross-user IDs silently ignored)
+- Frontend SPA: recurrence `<select>` in task form, recurrence badge (&#8635;) on task cards, bulk-select checkboxes on each card, floating bulk action bar with "Complete selected" / "Delete selected" / "Clear"
+- OpenAPI 3.0 spec: `recurrence` field added to `Task` schema and create/update request bodies; `POST /tasks/bulk-complete` and `POST /tasks/bulk-delete` endpoints documented
+- ~50 new tests covering `RecurrenceInterval`, recurring task auto-creation, `bulkComplete`/`bulkDelete` (repository + service layers), user isolation, partial success, and input validation
+
+### Changed
+- `Task` entity gains `recurrence` property (defaults to `RecurrenceInterval::None`)
+- `TaskRepository::save()` and `update()` now persist the `recurrence` column
+- `TaskService::completeTask()` triggers next-occurrence creation for recurring tasks
+
 ## [1.3.0] — 2026-05-28
 
 ### Added

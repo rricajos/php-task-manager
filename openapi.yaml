@@ -290,6 +290,12 @@ paths:
                   format: date
                   description: Due date in YYYY-MM-DD format / Fecha de vencimiento en formato YYYY-MM-DD
                   example: '2026-12-31'
+                recurrence:
+                  type: string
+                  enum: [none, daily, weekly, monthly]
+                  default: none
+                  description: Recurrence interval / Intervalo de repetición
+                  example: weekly
                 tag_ids:
                   type: array
                   items:
@@ -384,6 +390,11 @@ paths:
                   format: date
                   description: New due date (YYYY-MM-DD, empty string to remove) / Nueva fecha de vencimiento
                   example: '2026-12-31'
+                recurrence:
+                  type: string
+                  enum: [none, daily, weekly, monthly]
+                  description: New recurrence interval / Nuevo intervalo de repetición
+                  example: daily
                 tag_ids:
                   type: array
                   items:
@@ -544,6 +555,124 @@ paths:
                 $ref: '#/components/schemas/StatsResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+
+  /tasks/bulk-complete:
+    post:
+      tags: [Tasks]
+      operationId: bulkCompleteTasks
+      summary: Complete multiple tasks at once / Completar múltiples tareas a la vez
+      description: |
+        Marks multiple pending tasks as completed in a single atomic transaction.
+        Tasks that are already completed or belong to another user are silently skipped.
+        Returns the count of affected tasks and a list of skipped IDs.
+
+        Marca múltiples tareas pendientes como completadas en una transacción atómica.
+        Las tareas ya completadas o de otro usuario se ignoran silenciosamente.
+        Retorna el número de tareas afectadas y una lista de IDs omitidos.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ids]
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: integer
+                    minimum: 1
+                  minItems: 1
+                  description: List of task IDs to complete / Lista de IDs de tareas a completar
+                  example: [1, 2, 5]
+      responses:
+        '200':
+          description: Bulk complete result / Resultado de la completación masiva
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      affected:
+                        type: integer
+                        description: Number of tasks successfully completed / Número de tareas completadas
+                        example: 2
+                      skipped:
+                        type: array
+                        items:
+                          type: integer
+                        description: IDs of tasks that were already completed or not found / IDs omitidos (ya completados o no encontrados)
+                        example: [5]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+
+  /tasks/bulk-delete:
+    post:
+      tags: [Tasks]
+      operationId: bulkDeleteTasks
+      summary: Delete multiple tasks at once / Eliminar múltiples tareas a la vez
+      description: |
+        Permanently deletes multiple tasks in a single atomic transaction.
+        Tasks belonging to other users are silently ignored.
+        Returns the count of deleted tasks.
+
+        Elimina permanentemente múltiples tareas en una transacción atómica.
+        Las tareas de otros usuarios se ignoran silenciosamente.
+        Retorna el número de tareas eliminadas.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ids]
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: integer
+                    minimum: 1
+                  minItems: 1
+                  description: List of task IDs to delete / Lista de IDs de tareas a eliminar
+                  example: [3, 7, 9]
+      responses:
+        '200':
+          description: Bulk delete result / Resultado de la eliminación masiva
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      affected:
+                        type: integer
+                        description: Number of tasks deleted / Número de tareas eliminadas
+                        example: 3
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
         '429':
           $ref: '#/components/responses/RateLimitExceeded'
 
@@ -899,6 +1028,12 @@ components:
           nullable: true
           description: Due date in YYYY-MM-DD format (null if not set) / Fecha límite en formato YYYY-MM-DD (null si no tiene)
           example: '2026-12-31'
+        recurrence:
+          type: string
+          enum: [none, daily, weekly, monthly]
+          default: none
+          description: Recurrence interval — task auto-creates next occurrence on completion / Intervalo de repetición — la tarea auto-crea la siguiente al completarse
+          example: weekly
         tags:
           type: array
           description: Tags assigned to this task / Etiquetas asignadas a esta tarea

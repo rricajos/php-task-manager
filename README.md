@@ -4,7 +4,7 @@
 [![PHP Version](https://img.shields.io/badge/PHP-8.1%2B-777BB4?logo=php&logoColor=white)](https://www.php.net/)
 [![PHPStan](https://img.shields.io/badge/PHPStan-Level%207-brightgreen)](https://phpstan.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Tests](https://img.shields.io/badge/tests-288%20passed-brightgreen)](https://github.com/rricajos/php-task-manager/actions)
+[![Tests](https://img.shields.io/badge/tests-340%2B%20passed-brightgreen)](https://github.com/rricajos/php-task-manager/actions)
 [![codecov](https://codecov.io/gh/rricajos/php-task-manager/branch/main/graph/badge.svg)](https://codecov.io/gh/rricajos/php-task-manager)
 
 A task manager with **CLI** and **REST API** interfaces, built with PHP 8.x, SQLite, JWT authentication, and design patterns. Supports multi-user isolation, pagination, sorting, due dates, and streaming export.
@@ -23,7 +23,9 @@ A task manager with **CLI** and **REST API** interfaces, built with PHP 8.x, SQL
 - **Rate limiting**: IP-based sliding window rate limiting (10 req/min for auth, 60 req/min for tasks)
 - **CORS middleware**: Configurable Cross-Origin Resource Sharing with environment variable support
 - **Security**: JWT (HMAC-SHA256), bcrypt password hashing, prepared statements
-- **Testing**: 288 PHPUnit tests (unit + integration)
+- **Recurring tasks**: Auto-creates next occurrence on completion (`daily`/`weekly`/`monthly`)
+- **Bulk operations**: Complete or delete multiple tasks in one transactional API call
+- **Testing**: 340+ PHPUnit tests (unit + integration)
 - **CI/CD**: GitHub Actions with PHP 8.1/8.2/8.3 matrix, PHPStan static analysis, PHP-CS-Fixer
 - **Docker**: Containerized deployment with docker-compose
 - **Environment config**: .env support for JWT_SECRET, JWT_TTL, DB_PATH
@@ -132,6 +134,8 @@ composer coverage     # Generate test coverage report
 | `GET` | `/tasks/search?q=keyword` | Search tasks (paginated) | Yes |
 | `GET` | `/tasks/stats` | Statistics | Yes |
 | `GET` | `/tasks/export?format=json\|csv` | Export tasks (streaming download) | Yes |
+| `POST` | `/tasks/bulk-complete` | Complete multiple tasks | Yes |
+| `POST` | `/tasks/bulk-delete` | Delete multiple tasks | Yes |
 | `GET` | `/tags` | List all tags | Yes |
 | `POST` | `/tags` | Create tag | Yes |
 | `PATCH` | `/tags/{id}` | Update tag (name, color) | Yes |
@@ -198,9 +202,10 @@ php-task-manager/
 │   ├── JsonResponse.php     # HTTP response helper
 │   ├── Middleware.php        # HTTP middleware (auth, JSON parsing)
 │   ├── RateLimiter.php      # IP-based sliding window rate limiter
+│   ├── RecurrenceInterval.php  # Backed enum with nextDueDate() calculation
 │   ├── Router.php           # HTTP router with path params
 │   ├── TagRepository.php    # Tag data access (many-to-many task-tags)
-│   ├── Task.php             # Entity with Priority/Status enums
+│   ├── Task.php             # Entity with Priority/Status/RecurrenceInterval enums
 │   ├── TaskRepository.php   # Data access layer (user-scoped)
 │   ├── TaskService.php      # Business logic + validation
 │   ├── TaskServiceInterface.php  # Task service contract
@@ -216,8 +221,9 @@ php-task-manager/
 │   │   ├── RateLimiterTest.php     # Rate limiter tests
 │   │   ├── RouterTest.php           # Routing tests
 │   │   ├── TagRepositoryTest.php    # Tag repository tests
-│   │   ├── TaskRepositoryTest.php   # Repository tests
-│   │   ├── TaskServiceTest.php      # Service + validation tests
+│   │   ├── RecurrenceIntervalTest.php  # Recurrence enum + date calculation tests
+│   │   ├── TaskRepositoryTest.php   # Repository tests (incl. bulk operations)
+│   │   ├── TaskServiceTest.php      # Service + validation tests (incl. recurrence)
 │   │   └── TaskTest.php             # Entity + enum tests
 │   └── Integration/
 │       ├── ApiWorkflowTest.php      # API end-to-end tests
@@ -250,7 +256,7 @@ php-task-manager/
 
 ## Roadmap
 
-- [ ] Recurring tasks
+- [x] Recurring tasks
 - [ ] Team collaboration (shared task lists)
 - [ ] WebSocket notifications for real-time updates
 - [ ] OpenAPI schema validation middleware

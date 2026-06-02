@@ -368,12 +368,14 @@ class ApiController
             $description = $body['description'] ?? '';
             $priority = $body['priority'] ?? 'media';
             $dueDate = $body['due_date'] ?? null;
+            $recurrence = isset($body['recurrence']) ? (string) $body['recurrence'] : null;
 
             $task = $this->getTaskService()->createTask(
                 title: (string) $title,
                 description: (string) $description,
                 priority: (string) $priority,
                 dueDate: $dueDate !== null ? (string) $dueDate : null,
+                recurrence: $recurrence,
             );
 
             // Sync tags if provided / Sincronizar etiquetas si se proporcionan
@@ -423,6 +425,7 @@ class ApiController
             $description = isset($body['description']) ? (string) $body['description'] : null;
             $priority = isset($body['priority']) ? (string) $body['priority'] : null;
             $dueDate = isset($body['due_date']) ? (string) $body['due_date'] : null;
+            $recurrence = isset($body['recurrence']) ? (string) $body['recurrence'] : null;
 
             $task = $this->getTaskService()->updateTask(
                 id: $id,
@@ -430,6 +433,7 @@ class ApiController
                 description: $description,
                 priority: $priority,
                 dueDate: $dueDate,
+                recurrence: $recurrence,
             );
 
             // Sync tags if provided / Sincronizar etiquetas si se proporcionan
@@ -643,6 +647,84 @@ class ApiController
                 content: $content,
                 contentType: $format === 'csv' ? 'text/csv; charset=utf-8' : 'application/json; charset=utf-8',
                 headers: ['Content-Disposition' => 'attachment; filename="tasks_' . date('Y-m-d_His') . '.' . $format . '"'],
+            );
+        } catch (ValidationException $e) {
+            JsonResponse::error(
+                message: $e->getMessage(),
+                code: 422,
+                errors: ['field' => $e->field],
+            );
+        } catch (AppException $e) {
+            JsonResponse::error(
+                message: $e->getMessage(),
+                code: 500,
+            );
+        }
+    }
+
+    /**
+     * POST /tasks/bulk-complete - Completa múltiples tareas en una operación.
+     * POST /tasks/bulk-complete - Completes multiple tasks in one operation.
+     *
+     * @param array<string, mixed> $body Cuerpo de la petición / Request body (ids: int[])
+     */
+    public function bulkComplete(array $body): void
+    {
+        try {
+            $ids = $body['ids'] ?? [];
+
+            if (!is_array($ids)) {
+                JsonResponse::error(
+                    message: 'ids must be an array',
+                    code: 422,
+                    errors: ['field' => 'ids'],
+                );
+            }
+
+            $result = $this->getTaskService()->bulkComplete($ids);
+
+            JsonResponse::success(
+                data: $result,
+                message: "Completed {$result['affected']} task(s)",
+            );
+        } catch (ValidationException $e) {
+            JsonResponse::error(
+                message: $e->getMessage(),
+                code: 422,
+                errors: ['field' => $e->field],
+            );
+        } catch (AppException $e) {
+            JsonResponse::error(
+                message: $e->getMessage(),
+                code: 500,
+            );
+        }
+    }
+
+    /**
+     * POST /tasks/bulk-delete - Elimina múltiples tareas en una operación.
+     * POST /tasks/bulk-delete - Deletes multiple tasks in one operation.
+     *
+     * @param array<string, mixed> $body Cuerpo de la petición / Request body (ids: int[])
+     */
+    public function bulkDelete(array $body): void
+    {
+        try {
+            $ids = $body['ids'] ?? [];
+
+            if (!is_array($ids)) {
+                JsonResponse::error(
+                    message: 'ids must be an array',
+                    code: 422,
+                    errors: ['field' => 'ids'],
+                );
+            }
+
+            $result = $this->getTaskService()->bulkDelete($ids);
+
+            JsonResponse::success(
+                data: $result,
+                message: "Deleted {$result['affected']} task(s)",
             );
         } catch (ValidationException $e) {
             JsonResponse::error(

@@ -50,6 +50,7 @@ class TaskRepository
         'status',
         'due_date',
         'completed_at',
+        'recurrence',
     ];
 
     /**
@@ -380,8 +381,8 @@ class TaskRepository
     {
         try {
             $stmt = $this->pdo->prepare(
-                'INSERT INTO tasks (user_id, title, description, priority, status, due_date)
-                 VALUES (:user_id, :title, :description, :priority, :status, :due_date)'
+                'INSERT INTO tasks (user_id, title, description, priority, status, due_date, recurrence)
+                 VALUES (:user_id, :title, :description, :priority, :status, :due_date, :recurrence)'
             );
 
             $stmt->execute([
@@ -391,6 +392,7 @@ class TaskRepository
                 ':priority' => $task->priority->value,
                 ':status' => $task->status->value,
                 ':due_date' => $task->dueDate,
+                ':recurrence' => $task->recurrence->value,
             ]);
 
             // Get the generated id and return the complete task from the database
@@ -517,6 +519,109 @@ class TaskRepository
         } catch (PDOException $e) {
             throw new AppException(
                 message: "Error deleting task #{$id}: {$e->getMessage()}",
+                code: AppException::ERROR_DATABASE,
+                previous: $e,
+            );
+        }
+    }
+
+    /**
+     * Completa múltiples tareas en una sola transacción.
+     * Completes multiple tasks in a single transaction.
+     *
+     * Solo completa tareas pendientes del usuario actual. Las tareas
+     * que no existen, ya están completadas, o pertenecen a otro usuario
+     * se cuentan como 'skipped' sin lanzar error.
+     *
+     * Only completes pending tasks belonging to the current user. Tasks
+     * that do not exist, are already completed, or belong to another user
+     * are counted as 'skipped' without throwing an error.
+     *
+     * @param int[] $ids IDs de las tareas a completar / IDs of the tasks to complete
+     * @return array{affected: int, skipped: int[]} Resultado con tareas afectadas e IDs omitidos / Result with affected count and skipped IDs
+     * @throws AppException Si ocurre un error de base de datos / If a database error occurs
+     */
+    public function bulkComplete(array $ids): array
+    {
+        if ($ids === []) {
+            return ['affected' => 0, 'skipped' => []];
+        }
+
+        try {
+            $this->pdo->beginTransaction();
+            $affected = 0;
+            $skipped = [];
+
+            $stmt = $this->pdo->prepare(
+                'UPDATE tasks
+                 SET status = :completed, completed_at = CURRENT_TIMESTAMP
+                 WHERE id = :id AND user_id = :user_id AND status = :pending'
+            );
+
+            foreach ($ids as $id) {
+                $stmt->execute([
+                    ':completed' => Status::Completed->value,
+                    ':id' => $id,
+                    ':user_id' => $this->userId,
+                    ':pending' => Status::Pending->value,
+                ]);
+
+                if ($stmt->rowCount() > 0) {
+                    $affected++;
+                } else {
+                    $skipped[] = $id;
+                }
+            }
+
+            $this->pdo->commit();
+
+            return ['affected' => $affected, 'skipped' => $skipped];
+        } catch (PDOException $e) {
+            $this->pdo->rollBack();
+            throw new AppException(
+                message: "Error completing tasks in bulk: {$e->getMessage()}",
+                code: AppException::ERROR_DATABASE,
+                previous: $e,
+            );
+        }
+    }
+
+    /**
+     * Elimina múltiples tareas en una sola transacción.
+     * Deletes multiple tasks in a single transaction.
+     *
+     * Solo elimina tareas del usuario actual. Los IDs que no existen
+     * o pertenecen a otro usuario simplemente no generan filas afectadas.
+     *
+     * Only deletes tasks belonging to the current user. IDs that do not
+     * exist or belong to another user simply yield no affected rows.
+     *
+     * @param int[] $ids IDs de las tareas a eliminar / IDs of the tasks to delete
+     * @return array{affected: int} Resultado con número de tareas eliminadas / Result with number of deleted tasks
+     * @throws AppException Si ocurre un error de base de datos / If a database error occurs
+     */
+    public function bulkDelete(array $ids): array
+    {
+        if ($ids === []) {
+            return ['affected' => 0];
+        }
+
+        try {
+            $this->pdo->beginTransaction();
+
+            $placeholders = implode(',', array_fill(0, count($ids), '?'));
+            $sql = "DELETE FROM tasks WHERE user_id = ? AND id IN ({$placeholders})";
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute([$this->userId, ...$ids]);
+            $affected = $stmt->rowCount();
+
+            $this->pdo->commit();
+
+            return ['affected' => $affected];
+        } catch (PDOException $e) {
+            $this->pdo->rollBack();
+            throw new AppException(
+                message: "Error deleting tasks in bulk: {$e->getMessage()}",
                 code: AppException::ERROR_DATABASE,
                 previous: $e,
             );
