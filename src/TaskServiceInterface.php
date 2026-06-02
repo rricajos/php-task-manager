@@ -25,6 +25,7 @@ interface TaskServiceInterface
      * @param string $description Descripción / Description
      * @param string $priority Prioridad como string / Priority as string
      * @param string|null $dueDate Fecha de vencimiento / Due date
+     * @param string|null $recurrence Intervalo de recurrencia / Recurrence interval
      * @return Task La tarea creada / The created task
      */
     public function createTask(
@@ -32,6 +33,7 @@ interface TaskServiceInterface
         string $description,
         string $priority,
         ?string $dueDate = null,
+        ?string $recurrence = null,
     ): Task;
 
     /**
@@ -52,6 +54,7 @@ interface TaskServiceInterface
      * @param string|null $description Nueva descripción / New description
      * @param string|null $priority Nueva prioridad / New priority
      * @param string|null $dueDate Nueva fecha de vencimiento / New due date
+     * @param string|null $recurrence Nuevo intervalo de recurrencia / New recurrence interval
      * @return Task Tarea actualizada / Updated task
      */
     public function updateTask(
@@ -60,6 +63,7 @@ interface TaskServiceInterface
         ?string $description = null,
         ?string $priority = null,
         ?string $dueDate = null,
+        ?string $recurrence = null,
     ): Task;
 
     /**
@@ -111,6 +115,24 @@ interface TaskServiceInterface
      * @return Task[]|array{tasks: Task[], total: int, page: int, per_page: int, total_pages: int}
      */
     public function searchTasks(string $keyword, int $page = 0, int $perPage = 20): array;
+
+    /**
+     * Completa múltiples tareas en una sola operación.
+     * Completes multiple tasks in a single operation.
+     *
+     * @param array<mixed> $ids IDs de las tareas a completar / IDs of the tasks to complete
+     * @return array{affected: int, skipped: int[]} Resultado de la operación / Operation result
+     */
+    public function bulkComplete(array $ids): array;
+
+    /**
+     * Elimina múltiples tareas en una sola operación.
+     * Deletes multiple tasks in a single operation.
+     *
+     * @param array<mixed> $ids IDs de las tareas a eliminar / IDs of the tasks to delete
+     * @return array{affected: int} Resultado de la operación / Operation result
+     */
+    public function bulkDelete(array $ids): array;
 
     /**
      * Obtiene estadísticas de las tareas.
